@@ -23,7 +23,9 @@ public class OperationalTransformation{
 		DocumentUpdate last = approvedUpdates.get(approvedUpdates.size() - 1);
 		
 		do {
-			
+			/*
+			 * The code goes here.
+			 */
 		} while(last != null);
 		
 		return true;
