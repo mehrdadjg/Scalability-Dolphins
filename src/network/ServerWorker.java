@@ -33,9 +33,10 @@ class ServerWorker implements Runnable{
             while (isRunning){
                 if (dataInputStream.available() > 0){
                     //TODO deliver the message instead of discarding
-                    dataInputStream.readUTF();
+                    System.out.println("Incoming Message from " + socket.getInetAddress() + ":" + socket.getPort() + " > " +  dataInputStream.readUTF());  //TODO also replace print statements with logging framework
                 }
             }
+
 
             //release the resources before the thread terminates
             dataInputStream.close();

@@ -43,6 +43,8 @@ public class ServerMain implements Runnable{
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+        executorService.shutdown();
     }
 
     /**
