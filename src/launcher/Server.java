@@ -4,13 +4,14 @@ import network.ServerMain;
 import util.DocumentUpdate;
 
 import java.util.LinkedList;
+import java.util.Scanner;
 
 /**
  * Launcher for a backend replica server
  * This should remain as simple as possible, and only initialize the startup sequence for the server
  */
 public class Server{
-    static int port = 2227;
+    private static int port = 2227;
     LinkedList<DocumentUpdate> changes;
 
     public static void main(String[] args){
@@ -22,14 +23,12 @@ public class Server{
         Thread serverMainThread = new Thread(serverMain);
         serverMainThread.start();
 
-
-        //waits 30 seconds then shuts down the server
-        //TODO implement a better method than waiting a fixed length of time
-        try {
-            Thread.sleep(3000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        //Await Quit command to shutdown
+        Scanner scanner = new Scanner(System.in);
+        String userInput;
+        do {
+            userInput = scanner.nextLine();
+        } while (userInput.compareTo("Quit") != 0);
 
         serverMain.shutdown();
     }
