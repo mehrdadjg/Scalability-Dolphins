@@ -86,6 +86,17 @@ public class DocumentUpdate{
     }
     
     /**
+     * Set the specified position of the update.
+     * @param type The type of the position. Use one of the following: <ul><li>
+     * {@link PositionType#Intended}</li><li>{@link PositionType#Actual}</li>
+     * </ul> 
+     * @param position The new position to be set.
+     */
+    public void setPosition(PositionType type, int position) {
+    	
+    }
+    
+    /**
      * @return Returns the transformation number of the update.
      */
     public int getTransformationNumber() {
