@@ -1,10 +1,11 @@
 package network;
 
+import util.BlockingQueue;
+
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
-import java.util.Queue;
 import java.util.Vector;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -62,30 +63,18 @@ public class ServerMain implements Runnable{
         serverWorkers.forEach(ServerWorker::shutdown);
     }
 
-    public void broadcast(String msg){
-
+    /**
+     * broadcasts a string to all clients
+     * @param msg the message to be broadcast
+     */
+    private void broadcast(String msg){
         for (ServerWorker s : serverWorkers){
+            //TODO determine if sending has failed due to client disconnect
             try {
                 s.sendUTF(msg);
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
-    }
-}
-
-class BlockingQueue{
-    Vector<String> msgs = new Vector<>();
-
-    synchronized public void add(String s){
-        msgs.addElement(s);
-    }
-
-    synchronized public String retrieve(){
-        return msgs.remove(msgs.size() - 1);
-    }
-
-    public boolean available(){
-        return (msgs.size() > 0);
     }
 }
