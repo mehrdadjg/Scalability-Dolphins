@@ -1,9 +1,13 @@
 package network;
 
+import util.BlockingQueue;
+
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
+
+import static java.lang.Thread.yield;
 
 /**
  * A threaded worker process to handle communications to and from a single client
@@ -13,28 +17,41 @@ class ServerWorker implements Runnable{
     private DataInputStream dataInputStream;
     private DataOutputStream dataOutputStream;
     private boolean isRunning;
+    private BlockingQueue msgs;
 
     /**
      *
      * @param socket The socket which this worker should transmit and recieve from
+     * @param msgs The blocking queue to deliver messages to
      * @throws IOException If the the socket is unable to produce input and/or output streams
      */
-    ServerWorker(Socket socket) throws IOException {
+    ServerWorker(Socket socket, BlockingQueue msgs) throws IOException {
         this.socket = socket;
+        this.msgs = msgs;
         dataOutputStream = new DataOutputStream(socket.getOutputStream());
         dataInputStream = new DataInputStream(socket.getInputStream());
     }
 
     @Override
     public void run() {
+        //TODO determine if a client has disconnected and terminate thread
         try{
 
             isRunning = true;
             while (isRunning){
+
+                //readUTF() blocks until success, so we must check before calling it to avoid waiting if a packet isnt ready
                 if (dataInputStream.available() > 0){
-                    //TODO deliver the message instead of discarding
-                    System.out.println("Incoming Message from " + socket.getInetAddress() + ":" + socket.getPort() + " > " +  dataInputStream.readUTF());  //TODO also replace print statements with logging framework
+                    String msg = dataInputStream.readUTF();
+
+                    //TODO replace print statements with logging framework
+                    System.out.println("Incoming Message from " + socket.getInetAddress() + ":" + socket.getPort() + " > " +  msg);
+
+                    //add the recieved message to the queue for the server to broadcast later
+                    msgs.add(msg);
                 }
+
+                yield();
             }
 
 
@@ -59,7 +76,7 @@ class ServerWorker implements Runnable{
      * @param msg The string to be transmitted. It does not need to be null terminated.
      * @throws IOException if the dataOutputStream fails to send
      */
-    public void sendUTF(String msg)throws IOException{
+    void sendUTF(String msg)throws IOException{
         dataOutputStream.writeUTF(msg);
         dataOutputStream.flush();
     }
