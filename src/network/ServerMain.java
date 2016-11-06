@@ -3,6 +3,7 @@ package network;
 import util.BlockingQueue;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
@@ -31,6 +32,7 @@ public class ServerMain implements Runnable{
         ExecutorService executorService = Executors.newCachedThreadPool();
 
         try(ServerSocket serverSocket = new ServerSocket(port)) {
+            System.out.println(InetAddress.getLocalHost() + ":" + serverSocket.getLocalPort());
             serverSocket.setSoTimeout(100); //set a socket timeout so that accept() does not block forever and lets us exit the loop without interrupting normal execution
             isRunning = true;
             while (isRunning){
