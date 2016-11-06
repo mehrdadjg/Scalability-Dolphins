@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
+import java.util.Queue;
 import java.util.Vector;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -15,6 +16,7 @@ public class ServerMain implements Runnable{
     private int port;
     private boolean isRunning;
     private Vector<ServerWorker> serverWorkers = new Vector<>();
+    private BlockingQueue msgs = new BlockingQueue();
 
     public ServerMain(int port){
         this.port = port;
@@ -33,12 +35,16 @@ public class ServerMain implements Runnable{
             while (isRunning){
                 try{
                     Socket socket = serverSocket.accept();
-                    ServerWorker serverWorker = new ServerWorker(socket);
+                    ServerWorker serverWorker = new ServerWorker(socket, msgs);
                     serverWorkers.addElement(serverWorker);
                     executorService.submit(serverWorker);
                 } catch (SocketTimeoutException s){
                     //s.printStackTrace();              //suppress timeout exceptions when no connection requests occur
                 }
+                while (msgs.available()){
+                    broadcast(msgs.retrieve());
+                }
+
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -54,5 +60,32 @@ public class ServerMain implements Runnable{
     public void shutdown(){
         isRunning = false;
         serverWorkers.forEach(ServerWorker::shutdown);
+    }
+
+    public void broadcast(String msg){
+
+        for (ServerWorker s : serverWorkers){
+            try {
+                s.sendUTF(msg);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+}
+
+class BlockingQueue{
+    Vector<String> msgs = new Vector<>();
+
+    synchronized public void add(String s){
+        msgs.addElement(s);
+    }
+
+    synchronized public String retrieve(){
+        return msgs.remove(msgs.size() - 1);
+    }
+
+    public boolean available(){
+        return (msgs.size() > 0);
     }
 }

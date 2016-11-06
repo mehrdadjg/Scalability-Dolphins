@@ -4,6 +4,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
+import java.util.Vector;
 
 /**
  * A threaded worker process to handle communications to and from a single client
@@ -13,14 +14,17 @@ class ServerWorker implements Runnable{
     private DataInputStream dataInputStream;
     private DataOutputStream dataOutputStream;
     private boolean isRunning;
+    private BlockingQueue msgs;
 
     /**
      *
      * @param socket The socket which this worker should transmit and recieve from
+     * @param msgs
      * @throws IOException If the the socket is unable to produce input and/or output streams
      */
-    ServerWorker(Socket socket) throws IOException {
+    ServerWorker(Socket socket, BlockingQueue msgs) throws IOException {
         this.socket = socket;
+        this.msgs = msgs;
         dataOutputStream = new DataOutputStream(socket.getOutputStream());
         dataInputStream = new DataInputStream(socket.getInputStream());
     }
@@ -33,7 +37,9 @@ class ServerWorker implements Runnable{
             while (isRunning){
                 if (dataInputStream.available() > 0){
                     //TODO deliver the message instead of discarding
-                    System.out.println("Incoming Message from " + socket.getInetAddress() + ":" + socket.getPort() + " > " +  dataInputStream.readUTF());  //TODO also replace print statements with logging framework
+                    String msg = dataInputStream.readUTF();
+                    System.out.println("Incoming Message from " + socket.getInetAddress() + ":" + socket.getPort() + " > " +  msg);  //TODO also replace print statements with logging framework
+                    msgs.add(msg);
                 }
             }
 
