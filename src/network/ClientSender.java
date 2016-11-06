@@ -36,7 +36,6 @@ public class ClientSender implements Runnable {
 		
 		while(isRunning) {
 			char c = scanner.next(".").charAt(0);
-			System.out.println("Received input " + c);
 			
 			DocumentUpdate outgoingUpdate = 
 					new DocumentUpdate(c, Client.getMessage().length(), ++TN);

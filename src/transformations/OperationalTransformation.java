@@ -22,9 +22,9 @@ public class OperationalTransformation{
 		}
 		
 		int index = approvedUpdates.size() - 1;
-		DocumentUpdate previousUpdate = approvedUpdates.get(index);
 		
-		do {
+		while(index > 0) {
+			DocumentUpdate previousUpdate = approvedUpdates.get(index);
 			if(previousUpdate.getTransformationNumber() < incomingUpdate.getTransformationNumber()) {
 				/* I don't need to do anything here. I'm not interested in the transformations
 				   that has a TN smaller than the incomingUpdate */
@@ -56,8 +56,8 @@ public class OperationalTransformation{
 				   out a bigger TN which is a contradiction, since our links are dedicated TCP links, not
 				   allowing this to happen. */
 			}
-			previousUpdate = approvedUpdates.get(--index);
-		} while(previousUpdate != null);
+			index--;
+		}
 		
 		approvedUpdates.add(incomingUpdate);
 		

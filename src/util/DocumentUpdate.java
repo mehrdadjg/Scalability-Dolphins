@@ -1,5 +1,10 @@
 package util;
 
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.util.Base64;
+
 import transformations.OperationalTransformation;
 
 /**
@@ -35,6 +40,11 @@ public class DocumentUpdate{
      */
     char c;
     
+    /**
+     * The physical address of the client who initiated the update.
+     */
+    String mac;
+    
     public enum PositionType {
     	Intended,
     	Actual
@@ -60,9 +70,11 @@ public class DocumentUpdate{
     	this.transformationNumber = TN;
 
     	this.actualPosition = -1;
+    	
+    	this.mac = getMAC();
 	}
-    
-    private DocumentUpdate() {
+
+	private DocumentUpdate() {
     	
     }
     
@@ -98,8 +110,51 @@ public class DocumentUpdate{
      * @param position The new position to be set.
      */
     public void setPosition(PositionType type, int position) {
-    	
+    	switch (type) {
+		case Intended:
+			intendedPosition = position;
+			return;
+			
+		case Actual:
+			actualPosition = position;
+			return;
+			
+		default:
+			return;
+		}
     }
+    
+    /**
+     * Gets the physical address of the client who caused the update.
+     * @return Returns the Base64 representation of the MAC address, or null
+	 * if an exception occurs.
+     */
+    public String getMAC() {
+    	InetAddress ip;
+    	try {
+    		ip = InetAddress.getLocalHost();
+    		NetworkInterface network = NetworkInterface.getByInetAddress(ip);
+    		return Base64.getEncoder().encodeToString(network.getHardwareAddress());
+    	} catch(IOException e) {
+    		return null;
+    	}
+	}
+    
+    /**
+     * Gets the physical address of this client.
+     * @return Returns the Base64 representation of the MAC address, or null
+	 * if an exception occurs.
+     */
+    public static String getSelfMAC() {
+    	InetAddress ip;
+    	try {
+    		ip = InetAddress.getLocalHost();
+    		NetworkInterface network = NetworkInterface.getByInetAddress(ip);
+    		return Base64.getEncoder().encodeToString(network.getHardwareAddress());
+    	} catch(IOException e) {
+    		return null;
+    	}
+	}
     
     /**
      * @return Returns the transformation number of the update.
@@ -129,6 +184,7 @@ public class DocumentUpdate{
     }
     
     public static DocumentUpdate fromString(String input) {
+    	input = input.trim();
     	String[] inputList = input.split(String.valueOf((char) 0));
     	
     	DocumentUpdate out = new DocumentUpdate();
@@ -136,13 +192,14 @@ public class DocumentUpdate{
     	out.actualPosition			= Integer.parseInt(inputList[1]);
     	out.transformationNumber	= Integer.parseInt(inputList[2]);
     	out.c						= (char) Integer.parseInt(inputList[3]);
+    	out.mac						= inputList[4];
     	
     	return out;
     }
     
     @Override
     public String toString(){
-    	String str = String.valueOf(intendedPosition) + DELIM + String.valueOf(actualPosition) + DELIM + String.valueOf(transformationNumber) + DELIM + String.valueOf((int) c);
+    	String str = String.valueOf(intendedPosition) + DELIM + String.valueOf(actualPosition) + DELIM + String.valueOf(transformationNumber) + DELIM + String.valueOf((int) c) + DELIM + mac + "\n";
     	return str;
     }
 }

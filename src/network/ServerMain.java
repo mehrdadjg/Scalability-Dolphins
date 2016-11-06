@@ -38,6 +38,7 @@ public class ServerMain implements Runnable{
             while (isRunning){
                 try{
                     Socket socket = serverSocket.accept();
+                    System.out.println("Accepted new client!");
                     ServerWorker serverWorker = new ServerWorker(socket, msgs);
                     serverWorkers.addElement(serverWorker);
                     executorService.submit(serverWorker);

@@ -19,12 +19,15 @@ public class Client{
     
     private static Socket socket;
     
-    private static final String host	= "127.0.0.1";
-    private static final int    port 	= 2227;			// TODO Link this to Server#port
+    private static final String host			= "127.0.0.1";
+    private static final int    port 			= 2227;			// TODO Link this to Server#port
     
-    private static String		message = "";
+    private static String		message 		= "";
     
-    private static int			TN		= 0;
+    private static int			TN				= 0;
+    
+    private static Thread		receiverThread	= null;
+    private static Thread		senderThread	= null;
     
     public static void main(String[] args){
     	try {
@@ -37,13 +40,17 @@ public class Client{
     	ClientReceiver	receiver	= new ClientReceiver(socket, approvedUpdates);
     	ClientSender	sender		= new ClientSender(socket, TN);
     	
-    	receiver.run();
-    	sender.run();
+    	receiverThread	= new Thread(receiver);
+    	senderThread	= new Thread(sender);
+    	
+    	receiverThread.start();
+    	senderThread.start();
     }
     
     public static void performIncomingUpdate(DocumentUpdate incomingUpdate) {
     	TN++;
-    	performOutgoingUpdate(incomingUpdate);
+    	if(!incomingUpdate.getMAC().matches(DocumentUpdate.getSelfMAC()))
+    		performOutgoingUpdate(incomingUpdate);
     }
     
     public static void performOutgoingUpdate(DocumentUpdate outgoingUpdate) {
@@ -69,6 +76,7 @@ public class Client{
     					Client.message.substring(intendedPosition + 1);
     		}
     	}
+    	System.out.println("Current Message: " + Client.message);
     }
     
     public static String getMessage() {
