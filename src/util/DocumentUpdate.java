@@ -44,6 +44,7 @@ public class DocumentUpdate{
      * The backspace character.
      */
     public static final char BACKSPACE = 8;
+    private static final char DELIM = 0;
     
     /**
      * Creates a new instance of document update.
@@ -60,6 +61,10 @@ public class DocumentUpdate{
 
     	this.actualPosition = -1;
 	}
+    
+    private DocumentUpdate() {
+    	
+    }
     
     /**
      * Returns the position of in which the update will happen. You can
@@ -123,13 +128,21 @@ public class DocumentUpdate{
     	}
     }
     
+    public static DocumentUpdate fromString(String input) {
+    	String[] inputList = input.split(String.valueOf((char) 0));
+    	
+    	DocumentUpdate out = new DocumentUpdate();
+    	out.intendedPosition		= Integer.parseInt(inputList[0]);
+    	out.actualPosition			= Integer.parseInt(inputList[1]);
+    	out.transformationNumber	= Integer.parseInt(inputList[2]);
+    	out.c						= (char) Integer.parseInt(inputList[3]);
+    	
+    	return out;
+    }
+    
     @Override
     public String toString(){
-    	if(isDeletion()) {
-    		return ("Delete the character at position " + intendedPosition + " with TN " + transformationNumber + ".");
-    	} else {
-    		return ("Add " + getChar() + " at position " + intendedPosition + " with TN " + transformationNumber + ".");
-    		
-    	}
+    	String str = String.valueOf(intendedPosition) + DELIM + String.valueOf(actualPosition) + DELIM + String.valueOf(transformationNumber) + DELIM + String.valueOf((int) c);
+    	return str;
     }
 }

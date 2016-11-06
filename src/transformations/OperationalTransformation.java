@@ -59,6 +59,8 @@ public class OperationalTransformation{
 			previousUpdate = approvedUpdates.get(--index);
 		} while(previousUpdate != null);
 		
+		approvedUpdates.add(incomingUpdate);
+		
 		return true;
 	}
 	

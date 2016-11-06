@@ -33,6 +33,7 @@ public class ServerMain implements Runnable{
             while (isRunning){
                 try{
                     Socket socket = serverSocket.accept();
+                    System.out.println("New Client Connected");
                     ServerWorker serverWorker = new ServerWorker(socket);
                     serverWorkers.addElement(serverWorker);
                     executorService.submit(serverWorker);
