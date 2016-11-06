@@ -9,6 +9,7 @@ import java.util.Scanner;
 /**
  * Launcher for a backend replica server. This is the entry point for the backend server portion
  * This should remain as simple as possible, and only initialize the startup sequence for the server
+ * https://docs.oracle.com/javase/tutorial/networking/datagrams/broadcasting.html
  */
 public class Server{
     private static int port = 2227;
