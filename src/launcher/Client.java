@@ -57,6 +57,7 @@ public class Client{
     }
     
     public static void performOutgoingUpdate(DocumentUpdate outgoingUpdate) {
+    	System.out.println("updating: " + outgoingUpdate);
     	int intendedPosition	= outgoingUpdate.getPosition(PositionType.Intended);
     	int actualPosition		= outgoingUpdate.getPosition(PositionType.Actual);
     	
@@ -99,6 +100,6 @@ public class Client{
     }
     
     public static void removeUnapprovedUpdate(DocumentUpdate update) {
-    	unapprovedUpdates.remove(update);
+    	unapprovedUpdates.remove(update); // FIXME
     }
 }

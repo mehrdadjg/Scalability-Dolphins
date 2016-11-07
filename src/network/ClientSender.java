@@ -41,6 +41,8 @@ public class ClientSender implements Runnable {
 			
 			String outgoingUpdateString = outgoingUpdate.toString();
 			
+			Client.addUnapprovedUpdate(outgoingUpdate);
+			
 			try {
 				dataOutputStream.writeUTF(outgoingUpdateString);
 			} catch (IOException e) {
