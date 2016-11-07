@@ -19,7 +19,7 @@ public class Client{
     
     private static Socket socket;
     
-    private static final String host			= "127.0.0.1";
+    private static final String host			= "10.13.85.118";
     private static final int    port 			= 2227;			// TODO Link this to Server#port
     
     private static String		message 		= "";
@@ -48,9 +48,12 @@ public class Client{
     }
     
     public static void performIncomingUpdate(DocumentUpdate incomingUpdate) {
-    	TN++;
-    	if(!incomingUpdate.getMAC().matches(DocumentUpdate.getSelfMAC()))
+    	System.out.println(incomingUpdate.getMAC());
+    	System.out.println(DocumentUpdate.getSelfMAC());
+    	if(!incomingUpdate.getMAC().matches(DocumentUpdate.getSelfMAC())) {
+    		TN++;
     		performOutgoingUpdate(incomingUpdate);
+    	}
     }
     
     public static void performOutgoingUpdate(DocumentUpdate outgoingUpdate) {

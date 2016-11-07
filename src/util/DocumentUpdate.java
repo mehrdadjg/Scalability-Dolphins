@@ -22,28 +22,28 @@ public class DocumentUpdate{
 	/**
 	 * The index of the character that must be affected by the update.
 	 */
-    int intendedPosition;
+    int intendedPosition					= -1;
     /**
      * The position of the character that was affected by the update.
      * The {@link OperationalTransformation} class will manage this
      * field.
      */
-    int actualPosition;
+    int actualPosition						= -1;
     /**
      * The transformation number of this update.
      */
-    int transformationNumber;
+    int transformationNumber				= -1;
     /**
      * The character that must be added to the {@link DocumentUpdate#intendedPosition}.
      * In case of a deletion this character must be set to
      * {@link PositionType#BACKSPACE}.
      */
-    char c;
+    char c									= 0;
     
     /**
      * The physical address of the client who initiated the update.
      */
-    String mac;
+    String mac								= null;
     
     public enum PositionType {
     	Intended,
@@ -71,7 +71,7 @@ public class DocumentUpdate{
 
     	this.actualPosition = -1;
     	
-    	this.mac = getMAC();
+    	this.mac = DocumentUpdate.getSelfMAC();
 	}
 
 	private DocumentUpdate() {
@@ -130,14 +130,7 @@ public class DocumentUpdate{
 	 * if an exception occurs.
      */
     public String getMAC() {
-    	InetAddress ip;
-    	try {
-    		ip = InetAddress.getLocalHost();
-    		NetworkInterface network = NetworkInterface.getByInetAddress(ip);
-    		return Base64.getEncoder().encodeToString(network.getHardwareAddress());
-    	} catch(IOException e) {
-    		return null;
-    	}
+    	return this.mac;
 	}
     
     /**

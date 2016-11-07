@@ -23,7 +23,7 @@ public class OperationalTransformation{
 		
 		int index = approvedUpdates.size() - 1;
 		
-		while(index > 0) {
+		while(index >= 0) {
 			DocumentUpdate previousUpdate = approvedUpdates.get(index);
 			if(previousUpdate.getTransformationNumber() < incomingUpdate.getTransformationNumber()) {
 				/* I don't need to do anything here. I'm not interested in the transformations
