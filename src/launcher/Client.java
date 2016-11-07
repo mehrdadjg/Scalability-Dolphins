@@ -19,7 +19,7 @@ public class Client{
     
     private static Socket socket;
     
-    private static final String host			= "10.13.85.118";
+    private static final String host			= "10.13.117.30";
     private static final int    port 			= 2227;			// TODO Link this to Server#port
     
     private static String		message 		= "";
@@ -62,6 +62,7 @@ public class Client{
     	int actualPosition		= outgoingUpdate.getPosition(PositionType.Actual);
     	
     	int position = (actualPosition < 0) ? intendedPosition : actualPosition;
+    	System.out.println("position: " + position);
     	
     	if(position == Client.message.length()) {
     		if(outgoingUpdate.getChar() == DocumentUpdate.BACKSPACE) {
@@ -81,7 +82,7 @@ public class Client{
     					Client.message.substring(position + 1);
     		} else {
     			Client.message = Client.message.substring(0, position) + outgoingUpdate.getChar() +
-    					Client.message.substring(position + 1);
+    					Client.message.substring(position);
     		}
     	}
     	System.out.println("Current Message: " + Client.message);
