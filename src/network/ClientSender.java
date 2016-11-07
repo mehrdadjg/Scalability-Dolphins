@@ -15,7 +15,7 @@ public class ClientSender implements Runnable {
     
     private boolean						isRunning;
     
-	public ClientSender(Socket socket, int TN) {
+	public ClientSender(Socket socket) {
 		this.socket = socket;
 		
 		try {

@@ -38,7 +38,7 @@ public class Client{
     	}
     	
     	ClientReceiver	receiver	= new ClientReceiver(socket, approvedUpdates);
-    	ClientSender	sender		= new ClientSender(socket, TN);
+    	ClientSender	sender		= new ClientSender(socket);
     	
     	receiverThread	= new Thread(receiver);
     	senderThread	= new Thread(sender);
@@ -51,6 +51,8 @@ public class Client{
     	if(!incomingUpdate.getMAC().matches(DocumentUpdate.getSelfMAC())) {
     		TN++;
     		performOutgoingUpdate(incomingUpdate);
+    	} else {
+    		Client.removeUnapprovedUpdate(incomingUpdate);
     	}
     }
     
@@ -90,5 +92,13 @@ public class Client{
     
     public static int getAndIncreaseTransformationNumber() {
     	return ++Client.TN;
+    }
+    
+    public static void addUnapprovedUpdate(DocumentUpdate update) {
+    	unapprovedUpdates.add(update);
+    }
+    
+    public static void removeUnapprovedUpdate(DocumentUpdate update) {
+    	unapprovedUpdates.remove(update);
     }
 }
