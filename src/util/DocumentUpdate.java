@@ -195,4 +195,21 @@ public class DocumentUpdate{
     	String str = String.valueOf(intendedPosition) + DELIM + String.valueOf(actualPosition) + DELIM + String.valueOf(transformationNumber) + DELIM + String.valueOf((int) c) + DELIM + mac + "\n";
     	return str;
     }
+    
+    @Override
+    public boolean equals(Object other) {
+    	if(other == null)
+    		return false;
+    	if(other == this)
+    		return true;
+    	if(!(other instanceof DocumentUpdate))
+    		return false;
+    	DocumentUpdate otherUpdate = (DocumentUpdate) other;
+    	if(otherUpdate.c ==this.c &&
+    			otherUpdate.transformationNumber == this.transformationNumber &&
+    			otherUpdate.intendedPosition == this.intendedPosition)
+    		return true;
+    	else
+    		return false;
+    }
 }
