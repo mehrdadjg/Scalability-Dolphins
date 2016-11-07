@@ -15,11 +15,8 @@ public class ClientSender implements Runnable {
     
     private boolean						isRunning;
     
-    private int							TN;
-    
 	public ClientSender(Socket socket, int TN) {
 		this.socket = socket;
-		this.TN = TN;
 		
 		try {
 			dataOutputStream = new DataOutputStream(this.socket.getOutputStream());
@@ -38,7 +35,7 @@ public class ClientSender implements Runnable {
 			char c = scanner.next(".").charAt(0);
 			
 			DocumentUpdate outgoingUpdate = 
-					new DocumentUpdate(c, Client.getMessage().length(), ++TN);
+					new DocumentUpdate(c, Client.getMessage().length(), Client.getAndIncreaseTransformationNumber());
 			
 			Client.performOutgoingUpdate(outgoingUpdate);
 			

@@ -85,4 +85,8 @@ public class Client{
     public static String getMessage() {
     	return Client.message;
     }
+    
+    public static int getAndIncreaseTransformationNumber() {
+    	return ++Client.TN;
+    }
 }
