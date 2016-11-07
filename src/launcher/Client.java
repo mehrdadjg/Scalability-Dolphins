@@ -37,7 +37,7 @@ public class Client{
 			e.printStackTrace();
     	}
     	
-    	ClientReceiver	receiver	= new ClientReceiver(socket, approvedUpdates);
+    	ClientReceiver	receiver	= new ClientReceiver(socket, approvedUpdates, unapprovedUpdates);
     	ClientSender	sender		= new ClientSender(socket);
     	
     	receiverThread	= new Thread(receiver);
