@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.net.Socket;
 import java.net.UnknownHostException;
 
+import handlers.FileHandler;
+
 /**
  * Handles the incoming and outgoing connections
  */
@@ -12,10 +14,12 @@ public class ReplicaMain implements Runnable{
     private String proxyIp;
     private int proxyPort;
     private boolean isRunning;
+    private FileHandler fileHandler;
 
-    public ReplicaMain(String ip, int port) {
+    public ReplicaMain(String ip, int port) throws IOException {
         this.proxyIp = ip;
         this.proxyPort = port;
+        fileHandler = new FileHandler("file.txt");
     }
 
     /**
@@ -30,7 +34,8 @@ public class ReplicaMain implements Runnable{
                 //readUTF() blocks until success, so we must check before calling it to avoid waiting if a packet isnt ready
                 if (dataInputStream.available() > 0) {
                     String msg = dataInputStream.readUTF();
-                    //TODO deliver message instead of discarding
+                    //Write the incoming update to file
+                    fileHandler.append(msg);
 
                     //TODO replace print statements with logging framework
                     System.out.println("Incoming Message from proxy > " + msg);
@@ -42,7 +47,8 @@ public class ReplicaMain implements Runnable{
         } catch (IOException e) {
             e.printStackTrace();
         }
-
+        
+        fileHandler.close();
     }
 
     public void shutdown() {
