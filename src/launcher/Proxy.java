@@ -1,6 +1,7 @@
 package launcher;
 
 import network.ServerMain;
+
 import java.util.Scanner;
 
 /**
@@ -28,5 +29,6 @@ public class Proxy{
         } while (userInput.compareTo("Quit") != 0);
 
         serverMain.shutdown();
+        scanner.close();
     }
 }
