@@ -1,9 +1,7 @@
 package launcher;
 
-import network.ServerMain;
-import util.DocumentUpdate;
+import network.ReplicaMain;
 
-import java.util.LinkedList;
 import java.util.Scanner;
 
 /**
@@ -11,18 +9,18 @@ import java.util.Scanner;
  * This should remain as simple as possible, and only initialize the startup sequence for the server
  * https://docs.oracle.com/javase/tutorial/networking/datagrams/broadcasting.html
  */
-public class Server{
-    private static int port = 2227;
-    LinkedList<DocumentUpdate> changes;
+public class Replica {
+    private static String ip = "192.168.1.102";
+    private static int port = 3729;
 
     public static void main(String[] args){
+        //TODO check valid ip format with regex "\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}"
         if (args.length > 0){
-            port = Integer.parseInt(args[0]);
+            ip = args[0];
         }
 
-        ServerMain serverMain = new ServerMain(port);
-        Thread serverMainThread = new Thread(serverMain);
-        serverMainThread.start();
+        ReplicaMain replicaMain = new ReplicaMain(ip, port);
+        new Thread(replicaMain).start();
 
         //Await Quit command to shutdown
         Scanner scanner = new Scanner(System.in);
@@ -31,6 +29,7 @@ public class Server{
             userInput = scanner.nextLine();
         } while (userInput.compareTo("Quit") != 0);
 
-        serverMain.shutdown();
+        replicaMain.shutdown();
+        scanner.close();
     }
 }

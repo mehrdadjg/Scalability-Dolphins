@@ -19,12 +19,15 @@ public class Client{
     
     private static Socket socket;
     
-    private static final String host	= "127.0.0.1";
-    private static final int    port 	= 2227;			// TODO Link this to Server#port
+    private static final String host			= "127.0.0.1";
+    private static final int    port 			= 2227;			// TODO Link this to Server#port
     
-    private static String		message = "";
+    private static String		message 		= "";
     
-    private static int			TN		= 0;
+    private static int			TN				= 0;
+    
+    private static Thread		receiverThread	= null;
+    private static Thread		senderThread	= null;
     
     public static void main(String[] args){
     	try {
@@ -34,21 +37,34 @@ public class Client{
 			e.printStackTrace();
     	}
     	
-    	ClientReceiver	receiver	= new ClientReceiver(socket, approvedUpdates);
-    	ClientSender	sender		= new ClientSender(socket, TN);
+    	ClientReceiver	receiver	= new ClientReceiver(socket, approvedUpdates, unapprovedUpdates);
+    	ClientSender	sender		= new ClientSender(socket);
     	
-    	receiver.run();
-    	sender.run();
+    	receiverThread	= new Thread(receiver);
+    	senderThread	= new Thread(sender);
+    	
+    	receiverThread.start();
+    	senderThread.start();
     }
     
     public static void performIncomingUpdate(DocumentUpdate incomingUpdate) {
-    	TN++;
-    	performOutgoingUpdate(incomingUpdate);
+    	if(!incomingUpdate.getMAC().matches(DocumentUpdate.getSelfMAC())) {
+    		TN++;
+    		performOutgoingUpdate(incomingUpdate);
+    	} else {
+    		Client.removeUnapprovedUpdate(incomingUpdate);
+    	}
     }
     
     public static void performOutgoingUpdate(DocumentUpdate outgoingUpdate) {
-    	int intendedPosition;
-    	if((intendedPosition = outgoingUpdate.getPosition(PositionType.Intended)) == Client.message.length()) {
+    	System.out.println("updating: " + outgoingUpdate);
+    	int intendedPosition	= outgoingUpdate.getPosition(PositionType.Intended);
+    	int actualPosition		= outgoingUpdate.getPosition(PositionType.Actual);
+    	
+    	int position = (actualPosition < 0) ? intendedPosition : actualPosition;
+    	System.out.println("position: " + position);
+    	
+    	if(position == Client.message.length()) {
     		if(outgoingUpdate.getChar() == DocumentUpdate.BACKSPACE) {
     			if(Client.message.length() > 0) {
     				Client.message = Client.message.substring(0, Client.message.length() - 1);
@@ -56,22 +72,35 @@ public class Client{
     		} else {
     			Client.message = Client.message + outgoingUpdate.getChar();
     		}
-    	} else if(intendedPosition == 0) {
+    	} else if(position == 0) {
     		if(outgoingUpdate.getChar() != DocumentUpdate.BACKSPACE) {
     			Client.message = outgoingUpdate.getChar() + Client.message;
     		}
     	} else {	// The update is happening at an index in the middle
     		if(outgoingUpdate.getChar() == DocumentUpdate.BACKSPACE) {
-    			Client.message = Client.message.substring(0, intendedPosition) +
-    					Client.message.substring(intendedPosition + 1);
+    			Client.message = Client.message.substring(0, position) +
+    					Client.message.substring(position + 1);
     		} else {
-    			Client.message = Client.message.substring(0, intendedPosition) + outgoingUpdate.getChar() +
-    					Client.message.substring(intendedPosition + 1);
+    			Client.message = Client.message.substring(0, position) + outgoingUpdate.getChar() +
+    					Client.message.substring(position);
     		}
     	}
+    	System.out.println("Current Message: " + Client.message);
     }
     
     public static String getMessage() {
     	return Client.message;
+    }
+    
+    public static int getAndIncreaseTransformationNumber() {
+    	return ++Client.TN;
+    }
+    
+    public static void addUnapprovedUpdate(DocumentUpdate update) {
+    	unapprovedUpdates.add(update);
+    }
+    
+    public static void removeUnapprovedUpdate(DocumentUpdate update) {
+    	unapprovedUpdates.remove(update);
     }
 }
