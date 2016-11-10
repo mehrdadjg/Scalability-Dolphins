@@ -92,21 +92,28 @@ public class ServerMain implements Runnable{
      * @param msg the message to be broadcast
      */
     private void broadcast(String msg){
+        //TODO actively check for disconnects, rather than only when sending
         for (Socket s : serverReplicas){
             try{
                 DataOutputStream dataOutputStream = new DataOutputStream(s.getOutputStream());
                 dataOutputStream.writeUTF(msg);
                 dataOutputStream.flush();
             } catch (IOException e) {
-                e.printStackTrace();
+                //if sending has failed, socket is closed
+                System.out.println("replica disconnected at:" + s.getInetAddress() + ":" + s.getPort());
+                serverReplicas.remove(s);
+                //e.printStackTrace();
             }
         }
         for (ServerWorker s : serverClientWorkers){
-            //TODO determine if sending has failed due to client disconnect
             try {
                 s.sendUTF(msg);
             } catch (IOException e) {
-                e.printStackTrace();
+                //if sending has failed, client has likely disconnected
+                System.out.println("client disconnected");
+                s.shutdown();
+                serverClientWorkers.remove(s);
+                //e.printStackTrace();
             }
         }
     }

@@ -80,4 +80,20 @@ class ServerWorker implements Runnable{
         dataOutputStream.writeUTF(msg);
         dataOutputStream.flush();
     }
+
+    /**
+     * check if the client has disconnected and sent an EOF
+     * @return true if the client is still connected
+     */
+    boolean isConnected(){
+        try {
+            if (dataInputStream.readByte() == -1){
+                return false;
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return true;
+    }
 }
