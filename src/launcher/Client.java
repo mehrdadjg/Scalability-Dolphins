@@ -19,7 +19,7 @@ public class Client{
     
     private static Socket socket;
     
-    private static final String host			= "10.13.117.30";
+    private static final String host			= "127.0.0.1";
     private static final int    port 			= 2227;			// TODO Link this to Server#port
     
     private static String		message 		= "";
@@ -101,6 +101,6 @@ public class Client{
     }
     
     public static void removeUnapprovedUpdate(DocumentUpdate update) {
-    	unapprovedUpdates.remove(update); // FIXME
+    	unapprovedUpdates.remove(update);
     }
 }

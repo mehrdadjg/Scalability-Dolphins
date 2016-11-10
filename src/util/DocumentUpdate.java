@@ -54,7 +54,6 @@ public class DocumentUpdate{
      * The backspace character.
      */
     public static final char BACKSPACE = 8;
-    private static final char DELIM = 0;
     
     /**
      * Creates a new instance of document update.
@@ -178,21 +177,55 @@ public class DocumentUpdate{
     
     public static DocumentUpdate fromString(String input) {
     	input = input.trim();
-    	String[] inputList = input.split(String.valueOf((char) 0));
+    	String[] inputList = input.split(" ");
     	
     	DocumentUpdate out = new DocumentUpdate();
-    	out.intendedPosition		= Integer.parseInt(inputList[0]);
-    	out.actualPosition			= Integer.parseInt(inputList[1]);
-    	out.transformationNumber	= Integer.parseInt(inputList[2]);
-    	out.c						= (char) Integer.parseInt(inputList[3]);
-    	out.mac						= inputList[4];
+//    	out.intendedPosition		= Integer.parseInt(inputList[0]);
+//    	out.actualPosition			= Integer.parseInt(inputList[1]);
+//    	out.transformationNumber	= Integer.parseInt(inputList[2]);
+//    	out.c						= (char) Integer.parseInt(inputList[3]);
+//    	out.mac						= inputList[4];
+    	
+    	String header = inputList[0];
+    	if(header.matches("delete")) {
+    		out.intendedPosition		= Integer.parseInt(inputList[2]);
+        	out.actualPosition			= Integer.parseInt(inputList[3]);
+        	out.transformationNumber	= Integer.parseInt(inputList[4]);
+        	out.mac						= inputList[5];
+        	out.c						= DocumentUpdate.BACKSPACE;
+    	} else if(header.matches("add")) {
+    		out.intendedPosition		= Integer.parseInt(inputList[2]);
+        	out.actualPosition			= Integer.parseInt(inputList[3]);
+        	out.transformationNumber	= Integer.parseInt(inputList[4]);
+        	out.mac						= inputList[5];
+        	out.c						= (char) Integer.parseInt(inputList[6]);
+    	}
     	
     	return out;
     }
     
     @Override
     public String toString(){
-    	String str = String.valueOf(intendedPosition) + DELIM + String.valueOf(actualPosition) + DELIM + String.valueOf(transformationNumber) + DELIM + String.valueOf((int) c) + DELIM + mac + "\n";
+    	String str = null;
+    	if(isDeletion()) {
+//    		str = String.valueOf(intendedPosition) + DELIM + String.valueOf(actualPosition) + DELIM + String.valueOf(transformationNumber) + DELIM + String.valueOf((int) c) + DELIM + mac + "\n";
+    		
+    		
+    		str = "delete " + 										// The Header
+    				String.valueOf(0) +	" " +						// Document ID
+    				String.valueOf(intendedPosition) + " " +		// Intended Position
+    				String.valueOf(actualPosition) + " " +			// Actual Position
+    				String.valueOf(transformationNumber) + " " +	// Transformation Number
+    				mac + "\n";										// The MAC Address
+    	} else {
+    		str = "add " + 											// The Header
+    				String.valueOf(0) +	" " +						// Document ID
+    				String.valueOf(intendedPosition) + " " +		// Intended Position
+    				String.valueOf(actualPosition) + " " +			// Actual Position
+    				String.valueOf(transformationNumber) + " " +	// Transformation Number
+    				mac + " " +										// The MAC Address
+    				String.valueOf((int) c) + "\n";					// The Message
+    	}
     	return str;
     }
     
