@@ -18,8 +18,8 @@ public class ServerMain implements Runnable{
     private int clientPort;
     private int replicaPort;
     private boolean isRunning;
-    private Vector<ServerWorker> serverClientWorkers = new Vector<>();
-    private Vector<Socket> serverReplicas = new Vector<>();
+    private Vector<ServerWorker> serverClients = new Vector<>();
+    private Vector<ServerReplicaWorker> serverReplicas = new Vector<>();
     private BlockingQueue msgs = new BlockingQueue();
 
     public ServerMain(int clientPort, int replicaPort){
@@ -45,7 +45,7 @@ public class ServerMain implements Runnable{
                     Socket socket = serverClientSocket.accept();
                     System.out.println("Accepted new client at:" + socket.getInetAddress() + ":" + socket.getPort());
                     ServerWorker serverWorker = new ServerWorker(socket, msgs);
-                    serverClientWorkers.addElement(serverWorker);
+                    serverClients.addElement(serverWorker);
                     executorService.submit(serverWorker);
                 } catch (SocketTimeoutException s){
                     //s.printStackTrace();              //suppress timeout exceptions when no connection requests occur
@@ -53,14 +53,33 @@ public class ServerMain implements Runnable{
 
                 try{
                     Socket socket = serverReplicaSocket.accept();
-                    System.out.println("Accepted new replica at:" + socket.getInetAddress() + ":" + socket.getPort());
-                    serverReplicas.add(socket);
+                    System.out.println("Accepted new replica at: " + socket.getInetAddress() + ":" + socket.getPort());
+                    ServerReplicaWorker serverReplicaWorker = new ServerReplicaWorker(socket, msgs);
+                    serverReplicas.addElement(serverReplicaWorker);
+                    executorService.submit(serverReplicaWorker);
                 } catch (SocketTimeoutException s){
                     //s.printStackTrace();              //suppress timeout exceptions when no connection requests occur
                 }
 
+                //read all available messages
                 while (msgs.available()){
-                    broadcast(msgs.retrieve());
+                    String msg = msgs.retrieve();
+                    String msgType = msg.split(" ")[0];
+
+                    switch (msgType){
+                        case "add"  : case "delete" :
+                            //broadcast add and delete messages
+                            broadcast(msg);
+                            break;
+                        case "update" :
+                            //TODO start queuing messages while retrieving missed ones
+                            break;
+                        default:
+                            //Discard messages that are not recognized as part of the protocol
+                            System.out.println("Unknown message type recieved. Discarding > " + msg);
+                            break;
+                    }
+
                 }
 
             }
@@ -73,18 +92,12 @@ public class ServerMain implements Runnable{
 
     /**
      * sets the shutdown flag, allowing the run() method to eventually exit it's accept loop and clean up.
-     * also calls shutdown on all existing serverClientWorkers.
+     * also calls shutdown on all existing serverClients.
      */
     public void shutdown(){
         isRunning = false;
-        serverClientWorkers.forEach(ServerWorker::shutdown);
-        for (Socket s : serverReplicas){
-            try {
-                s.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
+        serverClients.forEach(ServerWorker::shutdown);
+        serverReplicas.forEach(ServerReplicaWorker::shutdown);
     }
 
     /**
@@ -93,26 +106,24 @@ public class ServerMain implements Runnable{
      */
     private void broadcast(String msg){
         //TODO actively check for disconnects, rather than only when sending
-        for (Socket s : serverReplicas){
+        for (ServerReplicaWorker s : serverReplicas){
             try{
-                DataOutputStream dataOutputStream = new DataOutputStream(s.getOutputStream());
-                dataOutputStream.writeUTF(msg);
-                dataOutputStream.flush();
+                s.sendUTF(msg);
             } catch (IOException e) {
                 //if sending has failed, socket is closed
-                System.out.println("replica disconnected at:" + s.getInetAddress() + ":" + s.getPort());
+                System.out.println("replica disconnected");
                 serverReplicas.remove(s);
                 //e.printStackTrace();
             }
         }
-        for (ServerWorker s : serverClientWorkers){
+        for (ServerWorker s : serverClients){
             try {
                 s.sendUTF(msg);
             } catch (IOException e) {
                 //if sending has failed, client has likely disconnected
                 System.out.println("client disconnected");
                 s.shutdown();
-                serverClientWorkers.remove(s);
+                serverClients.remove(s);
                 //e.printStackTrace();
             }
         }

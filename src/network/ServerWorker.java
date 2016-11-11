@@ -48,7 +48,7 @@ class ServerWorker implements Runnable{
                     System.out.println("Incoming Message from " + socket.getInetAddress() + ":" + socket.getPort() + " > " +  msg);
 
                     //add the recieved message to the queue for the server to broadcast later
-                    msgs.add(msg);
+                    deliver(msg);
                 }
 
                 yield();
@@ -62,6 +62,10 @@ class ServerWorker implements Runnable{
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    protected void deliver(String msg){
+        msgs.add(msg);
     }
 
     /**
