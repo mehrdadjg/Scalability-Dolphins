@@ -2,6 +2,7 @@ package launcher;
 
 import network.ReplicaMain;
 
+import java.io.IOException;
 import java.util.Scanner;
 
 /**
@@ -18,17 +19,23 @@ public class Replica {
             ip = args[0];
         }
 
-        ReplicaMain replicaMain = new ReplicaMain(ip, port);
-        new Thread(replicaMain).start();
+        ReplicaMain replicaMain;
+		try {
+			replicaMain = new ReplicaMain(ip, port);
+	        new Thread(replicaMain).start();
 
-        //Await Quit command to shutdown
-        Scanner scanner = new Scanner(System.in);
-        String userInput;
-        do {
-            userInput = scanner.nextLine();
-        } while (userInput.compareTo("Quit") != 0);
+	        //Await Quit command to shutdown
+	        Scanner scanner = new Scanner(System.in);
+	        String userInput;
+	        do {
+	            userInput = scanner.nextLine();
+	        } while (userInput.compareTo("Quit") != 0);
 
-        replicaMain.shutdown();
-        scanner.close();
+	        replicaMain.shutdown();
+	        scanner.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
     }
 }
