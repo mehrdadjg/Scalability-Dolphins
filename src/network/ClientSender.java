@@ -47,7 +47,12 @@ public class ClientSender implements Runnable {
 				dataOutputStream.writeUTF(outgoingUpdateString);
 			} catch (IOException e) {
 				System.err.println("ERROR IN CLIENT. Cannot write to the outgoing stream.");
-				e.printStackTrace();
+				if(Client.debugging) {
+					e.printStackTrace();
+				} else {
+					scanner.close();
+					return;
+				}
 			}
 		}
 		

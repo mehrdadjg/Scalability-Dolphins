@@ -40,10 +40,16 @@ public class ClientReceiver implements Runnable {
 		while(isRunning) {
 			try {
 				input = dataInputStream.readUTF();
-				System.out.println("input: " + input);
+				if(Client.debugging) {
+					System.out.print("input: " + input);
+				}
 			} catch(IOException e) {
 				System.err.println("ERROR IN CLIENT. Cannot read from the incoming stream.");
-				e.printStackTrace();
+				if(Client.debugging) {
+					e.printStackTrace();
+				} else {
+					return;
+				}
 			}
 			
 			DocumentUpdate incomingUpdate = DocumentUpdate.fromString(input);

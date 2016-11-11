@@ -1,10 +1,6 @@
 package util;
 
-import java.io.IOException;
-import java.net.InetAddress;
-import java.net.NetworkInterface;
-import java.util.Base64;
-
+import launcher.Client;
 import transformations.OperationalTransformation;
 
 /**
@@ -41,9 +37,9 @@ public class DocumentUpdate{
     char c									= 0;
     
     /**
-     * The physical address of the client who initiated the update.
+     * The ID of the client who initiated the update.
      */
-    String mac								= null;
+    String id								= null;
     
     public enum PositionType {
     	Intended,
@@ -70,7 +66,7 @@ public class DocumentUpdate{
 
     	this.actualPosition = -1;
     	
-    	this.mac = DocumentUpdate.getSelfMAC();
+    	this.id = Client.id;
 	}
 
 	private DocumentUpdate() {
@@ -128,25 +124,9 @@ public class DocumentUpdate{
      * @return Returns the Base64 representation of the MAC address, or null
 	 * if an exception occurs.
      */
-    public String getMAC() {
-    	return this.mac;
-	}
-    
-    /**
-     * Gets the physical address of this client.
-     * @return Returns the Base64 representation of the MAC address, or null
-	 * if an exception occurs.
-     */
-    public static String getSelfMAC() {
-    	InetAddress ip;
-    	try {
-    		ip = InetAddress.getLocalHost();
-    		NetworkInterface network = NetworkInterface.getByInetAddress(ip);
-    		return Base64.getEncoder().encodeToString(network.getHardwareAddress());
-    	} catch(IOException e) {
-    		return null;
-    	}
-	}
+    public String getID() {
+    	return this.id;
+    }
     
     /**
      * @return Returns the transformation number of the update.
@@ -191,13 +171,13 @@ public class DocumentUpdate{
     		out.intendedPosition		= Integer.parseInt(inputList[2]);
         	out.actualPosition			= Integer.parseInt(inputList[3]);
         	out.transformationNumber	= Integer.parseInt(inputList[4]);
-        	out.mac						= inputList[5];
+        	out.id						= inputList[5];
         	out.c						= DocumentUpdate.BACKSPACE;
     	} else if(header.matches("add")) {
     		out.intendedPosition		= Integer.parseInt(inputList[2]);
         	out.actualPosition			= Integer.parseInt(inputList[3]);
         	out.transformationNumber	= Integer.parseInt(inputList[4]);
-        	out.mac						= inputList[5];
+        	out.id						= inputList[5];
         	out.c						= (char) Integer.parseInt(inputList[6]);
     	}
     	
@@ -216,14 +196,14 @@ public class DocumentUpdate{
     				String.valueOf(intendedPosition) + " " +		// Intended Position
     				String.valueOf(actualPosition) + " " +			// Actual Position
     				String.valueOf(transformationNumber) + " " +	// Transformation Number
-    				mac + "\n";										// The MAC Address
+    				id + "\n";										// The MAC Address
     	} else {
     		str = "add " + 											// The Header
     				String.valueOf(0) +	" " +						// Document ID
     				String.valueOf(intendedPosition) + " " +		// Intended Position
     				String.valueOf(actualPosition) + " " +			// Actual Position
     				String.valueOf(transformationNumber) + " " +	// Transformation Number
-    				mac + " " +										// The MAC Address
+    				id + " " +										// The MAC Address
     				String.valueOf((int) c) + "\n";					// The Message
     	}
     	return str;
