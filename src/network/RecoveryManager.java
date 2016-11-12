@@ -14,9 +14,15 @@ public class RecoveryManager {
         this.serverWorkers = serverWorkers;
     }
 
-    public void recover(ServerReplicaWorker recoverer, int TNold){
+    public void recover(ServerWorker recoverer, int TNold){
         //recieve all replica TNs
         for (ServerReplicaWorker s : serverWorkers){
+
+            if (s.equals(recoverer)){
+                //Skip the recoverer when checking for current TNs
+                continue;
+            }
+
             try {
                 s.sendUTF("query_tn");
             } catch (IOException e) {
@@ -28,6 +34,12 @@ public class RecoveryManager {
         ServerReplicaWorker master = serverWorkers.firstElement();
         int TNmax = -1;
         for (ServerReplicaWorker s : serverWorkers){
+
+            if (s.equals(recoverer)){
+                //Skip the recoverer when checking for current TNs
+                continue;
+            }
+
             String[] queryResponse = s.read().split(" ");
             if (queryResponse[0].compareTo("tn") == 0){
                 int TNresponse = Integer.parseInt(queryResponse[1]);
@@ -36,6 +48,8 @@ public class RecoveryManager {
                     TNmax = TNresponse;
                 }
             }
+
+            recoverer.resumeAfterRecovery();
         }
 
         //retrieve all missed changes

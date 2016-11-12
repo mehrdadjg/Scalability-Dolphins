@@ -18,6 +18,8 @@ class ServerWorker implements Runnable{
     private DataOutputStream dataOutputStream;
     private boolean isRunning;
     private BlockingQueue msgs;
+    private RecoveryManager recoveryManager;
+    private boolean isRecovering = false;
 
     /**
      *
@@ -25,11 +27,12 @@ class ServerWorker implements Runnable{
      * @param msgs The blocking queue to deliver messages to
      * @throws IOException If the the socket is unable to produce input and/or output streams
      */
-    ServerWorker(Socket socket, BlockingQueue msgs) throws IOException {
+    ServerWorker(Socket socket, BlockingQueue msgs, RecoveryManager recoveryManager) throws IOException {
         this.socket = socket;
         this.msgs = msgs;
         dataOutputStream = new DataOutputStream(socket.getOutputStream());
         dataInputStream = new DataInputStream(socket.getInputStream());
+        this.recoveryManager = recoveryManager;
     }
 
     @Override
@@ -39,6 +42,7 @@ class ServerWorker implements Runnable{
 
             isRunning = true;
             while (isRunning){
+                if (isRecovering){continue;}
 
                 //readUTF() blocks until success, so we must check before calling it to avoid waiting if a packet isnt ready
                 if (dataInputStream.available() > 0){
@@ -54,6 +58,8 @@ class ServerWorker implements Runnable{
                             break;
                         case "update" :
                             //TODO start queuing messages while retrieving missed ones
+                            isRecovering = true;
+                            recoveryManager.recover(this, Integer.parseInt(msg.split(" ")[1]));
                             break;
                         default:
                             //Discard messages that are not recognized as part of the protocol
@@ -110,5 +116,9 @@ class ServerWorker implements Runnable{
         }
 
         return true;
+    }
+
+    public void resumeAfterRecovery(){
+        isRecovering = false;
     }
 }

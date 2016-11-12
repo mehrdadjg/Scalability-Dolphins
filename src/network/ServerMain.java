@@ -45,7 +45,7 @@ public class ServerMain implements Runnable{
                 try{
                     Socket socket = serverClientSocket.accept();
                     System.out.println("Accepted new client at:" + socket.getInetAddress() + ":" + socket.getPort());
-                    ServerWorker serverWorker = new ServerWorker(socket, msgs);
+                    ServerWorker serverWorker = new ServerWorker(socket, msgs, recoveryManager);
                     serverClients.addElement(serverWorker);
                     executorService.submit(serverWorker);
                 } catch (SocketTimeoutException s){
@@ -55,7 +55,7 @@ public class ServerMain implements Runnable{
                 try{
                     Socket socket = serverReplicaSocket.accept();
                     System.out.println("Accepted new replica at: " + socket.getInetAddress() + ":" + socket.getPort());
-                    ServerReplicaWorker serverReplicaWorker = new ServerReplicaWorker(socket, msgs);
+                    ServerReplicaWorker serverReplicaWorker = new ServerReplicaWorker(socket, msgs, recoveryManager);
                     serverReplicas.addElement(serverReplicaWorker);
                     executorService.submit(serverReplicaWorker);
                 } catch (SocketTimeoutException s){
@@ -94,6 +94,7 @@ public class ServerMain implements Runnable{
         for (ServerReplicaWorker s : serverReplicas){
             try{
                 s.sendUTF(msg);
+                System.out.println("sent message to >" + s);
             } catch (IOException e) {
                 //if sending has failed, socket is closed
                 System.out.println("replica disconnected");
