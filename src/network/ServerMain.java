@@ -21,6 +21,7 @@ public class ServerMain implements Runnable{
     private Vector<ServerWorker> serverClients = new Vector<>();
     private Vector<ServerReplicaWorker> serverReplicas = new Vector<>();
     private BlockingQueue msgs = new BlockingQueue();
+    private RecoveryManager recoveryManager = new RecoveryManager(serverReplicas);
 
     public ServerMain(int clientPort, int replicaPort){
         this.clientPort = clientPort;
@@ -63,23 +64,7 @@ public class ServerMain implements Runnable{
 
                 //read all available messages
                 while (msgs.available()){
-                    String msg = msgs.retrieve();
-                    String msgType = msg.split(" ")[0];
-
-                    switch (msgType){
-                        case "add"  : case "delete" :
-                            //broadcast add and delete messages
-                            broadcast(msg);
-                            break;
-                        case "update" :
-                            //TODO start queuing messages while retrieving missed ones
-                            break;
-                        default:
-                            //Discard messages that are not recognized as part of the protocol
-                            System.out.println("Unknown message type recieved. Discarding > " + msg);
-                            break;
-                    }
-
+                    broadcast(msgs.retrieve());
                 }
 
             }

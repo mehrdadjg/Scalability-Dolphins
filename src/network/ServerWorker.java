@@ -47,10 +47,21 @@ class ServerWorker implements Runnable{
                     //TODO replace print statements with logging framework
                     System.out.println("Incoming Message from " + socket.getInetAddress() + ":" + socket.getPort() + " > " +  msg);
 
-                    //add the recieved message to the queue for the server to broadcast later
-                    deliver(msg);
+                    switch (msg.split(" ")[0]){
+                        case "add"  : case "delete" :
+                            //add the recieved message to the queue for the server to broadcast later
+                            deliver(msg);
+                            break;
+                        case "update" :
+                            //TODO start queuing messages while retrieving missed ones
+                            break;
+                        default:
+                            //Discard messages that are not recognized as part of the protocol
+                            //TODO reply with <Error> according to protocol
+                            System.out.println("Unknown message type recieved. Discarding > " + msg);
+                            break;
+                    }
                 }
-
                 yield();
             }
 
