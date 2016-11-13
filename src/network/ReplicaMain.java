@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.Arrays;
+import java.util.regex.Pattern;
 
 import handlers.FileHandler;
 
@@ -31,6 +32,10 @@ public class ReplicaMain implements Runnable{
     public void run() {
         try(Socket socket = new Socket(proxyIp, proxyPort); DataInputStream dataInputStream = new DataInputStream(socket.getInputStream()); DataOutputStream dataOutputStream = new DataOutputStream((socket.getOutputStream()))) {
             System.out.println("Connected to proxy");
+
+            //retrieve file contents
+            requestUpdates(dataInputStream, dataOutputStream);
+
             isRunning = true;
             while (isRunning) {
                 //readUTF() blocks until success, so we must check before calling it to avoid waiting if a packet isnt ready
@@ -69,6 +74,29 @@ public class ReplicaMain implements Runnable{
         }
         
         fileHandler.close();
+    }
+
+    /**
+     * Requests and downloads missed messages and saves them to file
+     * @param dataInputStream The InputStream used to download the messages. remains open
+     * @param dataOutputStream The outputStream used to request the messages. remains open
+     * @throws IOException if the streams are disconnected
+     */
+    private void requestUpdates(DataInputStream dataInputStream,DataOutputStream dataOutputStream) throws IOException {
+        //TODO compare received messages to existing ones to avoid accidental duplication
+
+        //send an update request
+        dataOutputStream.writeUTF("update " + fileHandler.read().length);
+
+        //recieve and format the response
+        String[] msgs = Pattern.compile("\\[|,|\\]").split(dataInputStream.readUTF());
+
+        //store nonempty values from the response array
+        for (int i = 1; i < msgs.length; i++){
+            if (msgs[i].length() > 0){
+                fileHandler.append(msgs[i]);
+            }
+        }
     }
 
     public void shutdown() {
