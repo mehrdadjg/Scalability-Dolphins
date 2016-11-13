@@ -72,11 +72,12 @@ class ServerWorker implements Runnable{
                             if (msg.startsWith("[")){
                                 recoveryManager.recoveryList = msg;
                             }
-
-                            //Discard messages that are not recognized as part of the protocol
-                            //TODO reply with <Error> according to protocol
-                            System.out.println("Unknown message type recieved. Discarding > " + msg);
-                            break;
+                            else {
+                                //Discard messages that are not recognized as part of the protocol
+                                //TODO reply with <Error> according to protocol
+                                System.out.println("Unknown message type recieved. Discarding > " + msg);
+                                break;
+                            }
                     }
                 }
                 yield();

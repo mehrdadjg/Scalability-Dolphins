@@ -98,6 +98,7 @@ public class ServerMain implements Runnable{
             } catch (IOException e) {
                 //if sending has failed, socket is closed
                 System.out.println("replica disconnected");
+                s.shutdown();
                 serverReplicas.remove(s);
                 //e.printStackTrace();
             }
