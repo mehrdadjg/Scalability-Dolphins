@@ -9,6 +9,7 @@ import java.util.Vector;
  */
 class RecoveryManager {
     private Vector<ServerReplicaWorker> serverWorkers = new Vector<>();
+    String recoveryList = "";
 
     RecoveryManager(Vector<ServerReplicaWorker> serverWorkers){
         this.serverWorkers = serverWorkers;
@@ -68,9 +69,11 @@ class RecoveryManager {
             e.printStackTrace();
         }
 
+        while (recoveryList.length() == 0){Thread.yield();}
+
         //forward changes to recoverer
         try {
-            recoverer.sendUTF(master.read());
+            recoverer.sendUTF(recoveryList);
         } catch (IOException e) {
             e.printStackTrace();
         }

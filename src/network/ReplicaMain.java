@@ -51,7 +51,6 @@ public class ReplicaMain implements Runnable{
                             break;
                         case "transformations" :
                             //prepare yourself
-                            System.out.println(fileHandler.read()[0]);
                             dataOutputStream.writeUTF(Arrays.toString(Arrays.copyOfRange(fileHandler.read(), Integer.parseInt(msg.split(" ")[1]), Integer.parseInt(msg.split(" ")[2]))));
                             break;
                         default:
