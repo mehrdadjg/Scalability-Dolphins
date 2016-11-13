@@ -6,6 +6,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
+import java.util.Vector;
 
 import static java.lang.Thread.yield;
 
@@ -20,6 +21,8 @@ class ServerWorker implements Runnable{
     private BlockingQueue msgs;
     private RecoveryManager recoveryManager;
     private boolean isRecovering = false;
+    int knownTN;
+    boolean TNupdated = false;
 
     /**
      *
@@ -60,6 +63,10 @@ class ServerWorker implements Runnable{
                             //TODO start queuing messages while retrieving missed ones
                             isRecovering = true;
                             recoveryManager.recover(this, Integer.parseInt(msg.split(" ")[1]));
+                            break;
+                        case "tn" :
+                            knownTN = Integer.parseInt(msg.split(" ")[1]);
+                            TNupdated = true;
                             break;
                         default:
                             //Discard messages that are not recognized as part of the protocol
@@ -118,7 +125,7 @@ class ServerWorker implements Runnable{
         return true;
     }
 
-    public void resumeAfterRecovery(){
+    void resumeAfterRecovery(){
         isRecovering = false;
     }
 }

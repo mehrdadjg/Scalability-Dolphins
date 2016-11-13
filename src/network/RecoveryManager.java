@@ -7,14 +7,14 @@ import java.util.Vector;
 /**
  * INCOMPLETE
  */
-public class RecoveryManager {
+class RecoveryManager {
     private Vector<ServerReplicaWorker> serverWorkers = new Vector<>();
 
-    public RecoveryManager(Vector<ServerReplicaWorker> serverWorkers){
+    RecoveryManager(Vector<ServerReplicaWorker> serverWorkers){
         this.serverWorkers = serverWorkers;
     }
 
-    public void recover(ServerWorker recoverer, int TNold){
+    void recover(ServerWorker recoverer, int TNold){
         //recieve all replica TNs
         for (ServerReplicaWorker s : serverWorkers){
 
@@ -25,6 +25,7 @@ public class RecoveryManager {
 
             try {
                 s.sendUTF("query_tn");
+                s.TNupdated = false;
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -36,11 +37,15 @@ public class RecoveryManager {
         for (ServerReplicaWorker s : serverWorkers){
 
             if (s.equals(recoverer)){
-                //Skip the recoverer when checking for current TNs
-                continue;
-            }
+            //Skip the recoverer when checking for current TNs
+            continue;
+        }
+            while(!s.TNupdated){Thread.yield();}
 
-            String[] queryResponse = s.read().split(" ");
+
+
+           /* String[] queryResponse = s.read().split(" ");
+
             if (queryResponse[0].compareTo("tn") == 0){
                 int TNresponse = Integer.parseInt(queryResponse[1]);
                 if (TNresponse > TNmax){
@@ -48,8 +53,11 @@ public class RecoveryManager {
                     TNmax = TNresponse;
                 }
             }
-
-            recoverer.resumeAfterRecovery();
+            */
+            if (s.knownTN > TNmax){
+                master = s;
+                TNmax = s.knownTN;
+            }
         }
 
         //retrieve all missed changes
@@ -66,5 +74,7 @@ public class RecoveryManager {
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+        recoverer.resumeAfterRecovery();
     }
 }

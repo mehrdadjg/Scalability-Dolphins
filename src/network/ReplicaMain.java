@@ -37,6 +37,9 @@ public class ReplicaMain implements Runnable{
                 if (dataInputStream.available() > 0) {
                     String msg = dataInputStream.readUTF();
 
+                    //TODO replace print statements with logging framework
+                    System.out.println("Incoming Message from proxy > " + msg);
+
                     switch (msg.split(" ")[0]){
                         case "add"  : case "delete" :
                             //Write the incoming update to file
@@ -48,6 +51,7 @@ public class ReplicaMain implements Runnable{
                             break;
                         case "transformations" :
                             //prepare yourself
+                            System.out.println(fileHandler.read()[0]);
                             dataOutputStream.writeUTF(Arrays.toString(Arrays.copyOfRange(fileHandler.read(), Integer.parseInt(msg.split(" ")[1]), Integer.parseInt(msg.split(" ")[2]))));
                             break;
                         default:
@@ -56,11 +60,6 @@ public class ReplicaMain implements Runnable{
                             System.out.println("Unknown message type recieved. Discarding > " + msg);
                             break;
                     }
-
-
-
-                    //TODO replace print statements with logging framework
-                    System.out.println("Incoming Message from proxy > " + msg);
                 }
             }
         } catch (UnknownHostException e) {
