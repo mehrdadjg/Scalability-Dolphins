@@ -12,9 +12,10 @@ import java.util.Vector;
 class RecoveryManager {
     private Vector<ServerReplicaWorker> serverWorkers = new Vector<>(); //A list of available replicas to consult
     String recoveryList = "[]"; //A mailbox for the list of changes needed for a recovery that is set by a ServerReplicaWorker in a different thread
-    boolean timeoutFlag = false;
-    static int defaultTimout = 10000;
-    static String emptyList = "[]";
+    private boolean timeoutFlag = false;
+    private final static int defaultTimout = 500;
+    private final static String emptyList = "[]";
+    Timer timer;
 
     RecoveryManager(Vector<ServerReplicaWorker> serverWorkers){
         this.serverWorkers = serverWorkers;
@@ -126,10 +127,12 @@ class RecoveryManager {
 
     private void startTimer(){
         timeoutFlag = false;
-        new Timer().schedule(new TimerTask() {
+        timer = new Timer();
+        timer.schedule(new TimerTask() {
             @Override
             public void run() {
                 timeoutFlag = true;
+                timer.cancel();
             }
         }, defaultTimout);
     }

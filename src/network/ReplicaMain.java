@@ -18,6 +18,7 @@ public class ReplicaMain implements Runnable{
     private int proxyPort;
     private boolean isRunning;
     private FileHandler fileHandler;
+    public boolean recoveryMode = false;
 
     public ReplicaMain(String ip, int port) throws IOException {
         this.proxyIp = ip;
@@ -34,7 +35,9 @@ public class ReplicaMain implements Runnable{
             System.out.println("Connected to proxy");
 
             //retrieve file contents
-            requestUpdates(dataInputStream, dataOutputStream);
+            if (recoveryMode){
+                requestUpdates(dataInputStream, dataOutputStream);
+            }
 
             isRunning = true;
             while (isRunning) {

@@ -22,6 +22,7 @@ public class Replica {
         ReplicaMain replicaMain;
 		try {
 			replicaMain = new ReplicaMain(ip, port);
+            replicaMain.recoveryMode = true;
 	        new Thread(replicaMain).start();
 
 	        //Await Quit command to shutdown

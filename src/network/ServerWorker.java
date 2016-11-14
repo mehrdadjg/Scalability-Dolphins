@@ -20,7 +20,7 @@ class ServerWorker implements Runnable{
     private boolean isRunning;
     private BlockingQueue msgs;
     private RecoveryManager recoveryManager;
-    private boolean isRecovering = false;
+    boolean isRecovering = false;
     int knownTN;
     boolean TNupdated = false;
 
@@ -45,7 +45,7 @@ class ServerWorker implements Runnable{
 
             isRunning = true;
             while (isRunning){
-                if (isRecovering){continue;}
+                //if (isRecovering){continue;}
 
                 //readUTF() blocks until success, so we must check before calling it to avoid waiting if a packet isnt ready
                 if (dataInputStream.available() > 0){
@@ -93,7 +93,7 @@ class ServerWorker implements Runnable{
         }
     }
 
-    protected void deliver(String msg){
+    private void deliver(String msg){
         msgs.add(msg);
     }
 

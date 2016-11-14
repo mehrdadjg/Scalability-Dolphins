@@ -31,7 +31,7 @@ public class FileHandler {
 	 * @throws IOException if the file could not be written to. likely means the file was deleted
 	 */
 	public void append(String data) throws IOException{
-		fileWriter.append(data);
+		fileWriter.append(data.trim());
 		fileWriter.append(newLine);
 		fileWriter.flush();
 	}
