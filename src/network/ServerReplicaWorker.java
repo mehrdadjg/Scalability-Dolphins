@@ -4,7 +4,6 @@ import util.BlockingQueue;
 
 import java.io.IOException;
 import java.net.Socket;
-import java.util.Vector;
 
 /**
  * A Threaded worker process overloaded to handle replica connections

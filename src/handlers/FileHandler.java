@@ -42,12 +42,18 @@ public class FileHandler {
 	 */
 	public String[] read(){
 		try {
-			return new String(Files.readAllBytes(file.toPath())).split(newLine);
+			String[] output = new String(Files.readAllBytes(file.toPath())).split(newLine);
+			if(output.length == 1 && output[0].trim().matches("")) {
+				return new String[0];
+			} else {
+				return output;
+			}
 		} catch (IOException e) {
 			//implies file does not exist
 			//e.printStackTrace();
 
 			//return empty array
+			System.err.println("sdfsdf");
 			return new String[0];
 		}
 	}
