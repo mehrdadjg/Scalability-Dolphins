@@ -55,11 +55,11 @@ public class ReplicaMain implements Runnable{
                             break;
                         case "query_tn" :
                             //reply with the current TN
-                            dataOutputStream.writeUTF("tn " + (fileHandler.read().length - 1));
+                            dataOutputStream.writeUTF("tn " + (fileHandler.read().length));
                             break;
                         case "transformations" :
                             //prepare yourself
-                            dataOutputStream.writeUTF(Arrays.toString(Arrays.copyOfRange(fileHandler.read(), Integer.parseInt(msg.split(" ")[1]), Integer.parseInt(msg.split(" ")[2]) + 1)));
+                            dataOutputStream.writeUTF(Arrays.toString(Arrays.copyOfRange(fileHandler.read(), Integer.parseInt(msg.split(" ")[1]), Integer.parseInt(msg.split(" ")[2]))));
                             break;
                         default:
                             //Discard messages that are not recognized as part of the protocol
@@ -89,7 +89,7 @@ public class ReplicaMain implements Runnable{
         //TODO compare received messages to existing ones to avoid accidental duplication
 
         //send an update request
-        dataOutputStream.writeUTF("update " + (fileHandler.read().length - 1));
+        dataOutputStream.writeUTF("update " + (fileHandler.read().length));
 
         //recieve and format the response
         String[] msgs = Pattern.compile("\\[|,|\\]").split(dataInputStream.readUTF());

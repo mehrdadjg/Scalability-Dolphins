@@ -10,12 +10,15 @@ import java.util.Scanner;
  * This should remain as simple as possible to minimize the chances of failure
  */
 public class Proxy{
-    private static int clientPort = 2227;
-    private static int replicaPort = 3729;
+    private static int clientPort = 22;
+    private static int replicaPort = 21;
 
     public static void main(String[] args){
         if (args.length > 0){
             clientPort = Integer.parseInt(args[0]);
+            if (args.length > 1){
+                replicaPort = Integer.parseInt(args[1]);
+            }
         }
 
         ServerMain serverMain = new ServerMain(clientPort, replicaPort);

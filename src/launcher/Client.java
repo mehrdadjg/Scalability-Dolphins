@@ -32,7 +32,7 @@ public class Client{
     private static DataOutputStream	dataOutputStream	= null;
     
     private static String 			host				= "127.0.0.1";
-    private static int    			port 				= 2227;			// TODO Link this to Server#port
+    private static int    			port 				= 22;			// TODO Link this to Server#port
     
     private static String			message 			= "";
     
@@ -127,7 +127,7 @@ public class Client{
 	}
 
 	public static void performIncomingUpdate(DocumentUpdate incomingUpdate) {
-    	if(!incomingUpdate.getID().matches(Client.id)) {
+    	if(incomingUpdate.getID().compareTo(Client.id) != 0) {
     		TN++;
     		performOutgoingUpdate(incomingUpdate);
     	} else {
