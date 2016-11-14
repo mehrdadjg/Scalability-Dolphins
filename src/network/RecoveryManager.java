@@ -16,60 +16,100 @@ class RecoveryManager {
     }
 
     void recover(ServerWorker recoverer, int TNold){
-        //request all replica TNs
-        for (ServerReplicaWorker s : serverWorkers){
+        boolean recoveryComplete = false;
 
-            if (s.equals(recoverer)){
-                //Skip the recoverer when checking for current TNs
-                continue;
+        for (ServerWorker s : serverWorkers){
+            if (!s.isConnected()){
+                s.shutdown();
+                serverWorkers.remove(s);
+            }
+        }
+
+        while (!recoveryComplete){
+            //if no other servers are online, abort
+            if (serverWorkers.size() < 2){
+                try {
+                    recoverer.sendUTF("[]");
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
             }
 
+            //request all replica TNs
+            for (ServerReplicaWorker s : serverWorkers){
+
+                if (s.equals(recoverer)){
+                    //Skip the recoverer when checking for current TNs
+                    continue;
+                }
+
+                try {
+                    s.sendUTF("query_tn");
+                    s.TNupdated = false;
+                } catch (IOException e) {
+                    // replica has failed, remove it from the list of replicas and shut it down
+                    serverWorkers.remove(s);
+                    s.shutdown();
+                    //e.printStackTrace();
+                }
+            }
+
+            //pick server with highest TN
+            ServerReplicaWorker master = null;//serverWorkers.firstElement();
+
+            int TNmax = -1;
+            for (ServerReplicaWorker s : serverWorkers){
+
+                if (s.equals(recoverer)){
+                    //Skip the recoverer when checking for current TNs
+                    continue;
+                }
+                while(!s.TNupdated){Thread.yield();}
+
+                if (s.knownTN > TNmax){
+                    master = s;
+                    TNmax = s.knownTN;
+                }
+            }
+            //abort if nobody has a higher tn
+            if (master == null){
+                break;
+            }
+
+            //retrieve all missed changes
             try {
-                s.sendUTF("query_tn");
-                s.TNupdated = false;
+                master.sendUTF("transformations " + TNold + " " + TNmax);
             } catch (IOException e) {
-                // replica has failed, remove it from the list of replicas and shut it down
-                serverWorkers.remove(s);
-                s.shutdown();
+                //remove failed server and restart recovery if the master has failed
+                serverWorkers.remove(master);
+                master.shutdown();
+                continue;
                 //e.printStackTrace();
             }
-        }
 
-        //pick server with highest TN
-        ServerReplicaWorker master = serverWorkers.firstElement();
-        int TNmax = -1;
-        for (ServerReplicaWorker s : serverWorkers){
+            //wait for a reply
+            while (recoveryList.length() == 0){Thread.yield();}
 
-            if (s.equals(recoverer)){
-            //Skip the recoverer when checking for current TNs
-            continue;
-        }
-            while(!s.TNupdated){Thread.yield();}
-
-            if (s.knownTN > TNmax){
-                master = s;
-                TNmax = s.knownTN;
+            //forward changes to recoverer
+            try {
+                recoverer.sendUTF(recoveryList);
+            } catch (IOException e) {
+                //recoverer has failed again
+                recoverer.shutdown();
+                break;
+                //e.printStackTrace();
             }
+
+            recoveryComplete = true;
+
         }
 
-        //retrieve all missed changes
-        try {
-            master.sendUTF("transformations " + TNold + " " + TNmax);
-        } catch (IOException e) {
-            //TODO remove failed server from serverWorkers and restart recovery if the master has failed
-            e.printStackTrace();
+        if (recoveryComplete){
+            recoverer.resumeAfterRecovery();
         }
 
-        //wait for a reply
-        while (recoveryList.length() == 0){Thread.yield();}
-
-        //forward changes to recoverer
-        try {
-            recoverer.sendUTF(recoveryList);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        recoverer.resumeAfterRecovery();
+        //reset and prepare for the next request
+        recoveryList = "";
     }
+
 }

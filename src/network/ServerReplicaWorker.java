@@ -10,7 +10,6 @@ import java.util.Vector;
  * A Threaded worker process overloaded to handle replica connections
  */
 class ServerReplicaWorker extends ServerWorker{
-    Vector<String> msgs = new Vector<>();
 
     /**
      * @param socket The socket which this worker should transmit and recieve from
@@ -20,36 +19,4 @@ class ServerReplicaWorker extends ServerWorker{
     ServerReplicaWorker(Socket socket, BlockingQueue msgs, RecoveryManager recoveryManager) throws IOException {
         super(socket, msgs, recoveryManager);
     }
-
-    /**
-     * adds a message to this worker's local queue
-     * @param msg the message that should be delivered
-     */
-    @Override
-    protected void deliver(String msg){
-        msgs.add(msg);
-    }
-
-    public String read(){
-        if (msgs.size() > 0) {
-            return (msgs.remove(0));
-        }
-        else {
-            return "";
-        }
-    }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-

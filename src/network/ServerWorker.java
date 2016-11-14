@@ -124,7 +124,8 @@ class ServerWorker implements Runnable{
                 return false;
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            //e.printStackTrace();
+            return false;
         }
 
         return true;
