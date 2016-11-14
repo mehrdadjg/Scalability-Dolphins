@@ -18,6 +18,7 @@ public class ReplicaMain implements Runnable{
     private int proxyPort;
     private boolean isRunning;
     private FileHandler fileHandler;
+    public boolean recoveryMode = false;
 
     public ReplicaMain(String ip, int port) throws IOException {
         this.proxyIp = ip;
@@ -34,7 +35,9 @@ public class ReplicaMain implements Runnable{
             System.out.println("Connected to proxy");
 
             //retrieve file contents
-            requestUpdates(dataInputStream, dataOutputStream);
+            if (recoveryMode){
+                requestUpdates(dataInputStream, dataOutputStream);
+            }
 
             isRunning = true;
             while (isRunning) {
@@ -52,11 +55,11 @@ public class ReplicaMain implements Runnable{
                             break;
                         case "query_tn" :
                             //reply with the current TN
-                            dataOutputStream.writeUTF("tn " + (fileHandler.read().length));
+                            dataOutputStream.writeUTF("tn " + (fileHandler.read().length - 1));
                             break;
                         case "transformations" :
                             //prepare yourself
-                            dataOutputStream.writeUTF(Arrays.toString(Arrays.copyOfRange(fileHandler.read(), Integer.parseInt(msg.split(" ")[1]), Integer.parseInt(msg.split(" ")[2]))));
+                            dataOutputStream.writeUTF(Arrays.toString(Arrays.copyOfRange(fileHandler.read(), Integer.parseInt(msg.split(" ")[1]), Integer.parseInt(msg.split(" ")[2]) + 1)));
                             break;
                         default:
                             //Discard messages that are not recognized as part of the protocol
@@ -86,8 +89,7 @@ public class ReplicaMain implements Runnable{
         //TODO compare received messages to existing ones to avoid accidental duplication
 
         //send an update request
-    	String[] current = fileHandler.read();
-        dataOutputStream.writeUTF("update " + current.length);
+        dataOutputStream.writeUTF("update " + (fileHandler.read().length - 1));
 
         //recieve and format the response
         String[] msgs = Pattern.compile("\\[|,|\\]").split(dataInputStream.readUTF());
@@ -98,6 +100,8 @@ public class ReplicaMain implements Runnable{
                 fileHandler.append(msgs[i]);
             }
         }
+
+        System.out.println("finished updating from proxy");
     }
 
     public void shutdown() {
