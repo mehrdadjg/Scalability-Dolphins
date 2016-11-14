@@ -11,7 +11,7 @@ import java.util.Vector;
  */
 class RecoveryManager {
     private Vector<ServerReplicaWorker> serverWorkers = new Vector<>(); //A list of available replicas to consult
-    String recoveryList = "[]"; //A mailbox for the list of changes needed for a recovery that is set by a ServerReplicaWorker in a different thread
+    String recoveryList = emptyList; //A mailbox for the list of changes needed for a recovery that is set by a ServerReplicaWorker in a different thread
     private boolean timeoutFlag = false;
     private final static int defaultTimout = 500;
     private final static String emptyList = "[]";
@@ -34,7 +34,7 @@ class RecoveryManager {
         while (!recoveryComplete){
             //if no other servers are online, abort
 
-            if (serverWorkers.size() > 1) {
+            if (serverWorkers.size() > 0 && recoverer != serverWorkers.firstElement()) {
 
                 //request all replica TNs
                 for (ServerReplicaWorker s : serverWorkers) {
