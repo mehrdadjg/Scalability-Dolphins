@@ -22,7 +22,7 @@ public class FileHandler {
 		file = new File(System.getProperty("user.dir") + File.separator + filename);
 
 		//create the writer object which will be used in all future write operations
-		fileWriter = new FileWriter(file);
+		fileWriter = new FileWriter(file, true);
 	}
 
 	/**
