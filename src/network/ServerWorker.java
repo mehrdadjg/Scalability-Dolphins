@@ -120,7 +120,7 @@ class ServerWorker implements Runnable{
      */
     boolean isConnected(){
         try {
-            if (dataInputStream.readByte() == -1){
+            if (dataInputStream.available() == 1){
                 return false;
             }
         } catch (IOException e) {

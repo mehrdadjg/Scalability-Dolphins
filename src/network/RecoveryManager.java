@@ -2,6 +2,8 @@ package network;
 
 
 import java.io.IOException;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.Vector;
 
 /**
@@ -9,7 +11,10 @@ import java.util.Vector;
  */
 class RecoveryManager {
     private Vector<ServerReplicaWorker> serverWorkers = new Vector<>(); //A list of available replicas to consult
-    String recoveryList = ""; //A mailbox for the list of changes needed for a recovery that is set by a ServerReplicaWorker in a different thread
+    String recoveryList = "[]"; //A mailbox for the list of changes needed for a recovery that is set by a ServerReplicaWorker in a different thread
+    boolean timeoutFlag = false;
+    static int defaultTimout = 10000;
+    static String emptyList = "[]";
 
     RecoveryManager(Vector<ServerReplicaWorker> serverWorkers){
         this.serverWorkers = serverWorkers;
@@ -42,10 +47,10 @@ class RecoveryManager {
                     //Skip the recoverer when checking for current TNs
                     continue;
                 }
+                s.knownTN = -1;
 
                 try {
                     s.sendUTF("query_tn");
-                    s.TNupdated = false;
                 } catch (IOException e) {
                     // replica has failed, remove it from the list of replicas and shut it down
                     serverWorkers.remove(s);
@@ -57,6 +62,11 @@ class RecoveryManager {
             //pick server with highest TN
             ServerReplicaWorker master = null;//serverWorkers.firstElement();
 
+
+            startTimer();
+
+            while(!timeoutFlag){Thread.yield();}
+
             int TNmax = -1;
             for (ServerReplicaWorker s : serverWorkers){
 
@@ -64,7 +74,7 @@ class RecoveryManager {
                     //Skip the recoverer when checking for current TNs
                     continue;
                 }
-                while(!s.TNupdated){Thread.yield();}
+
 
                 if (s.knownTN > TNmax){
                     master = s;
@@ -88,7 +98,9 @@ class RecoveryManager {
             }
 
             //wait for a reply
-            while (recoveryList.length() == 0){Thread.yield();}
+            startTimer();
+
+            while(!timeoutFlag && (recoveryList.equals(emptyList))){Thread.yield();}
 
             //forward changes to recoverer
             try {
@@ -109,7 +121,16 @@ class RecoveryManager {
         }
 
         //reset and prepare for the next request
-        recoveryList = "";
+        recoveryList = "[]";
     }
 
+    private void startTimer(){
+        timeoutFlag = false;
+        new Timer().schedule(new TimerTask() {
+            @Override
+            public void run() {
+                timeoutFlag = true;
+            }
+        }, defaultTimout);
+    }
 }
