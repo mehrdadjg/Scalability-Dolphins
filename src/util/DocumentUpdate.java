@@ -156,6 +156,9 @@ public class DocumentUpdate{
     }
     
     public static DocumentUpdate fromString(String input) {
+    	if(Client.debugging) {
+    		System.out.println("fromString: " + input);
+    	}
     	input = input.trim();
     	String[] inputList = input.split(" ");
     	

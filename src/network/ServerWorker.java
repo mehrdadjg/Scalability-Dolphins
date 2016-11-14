@@ -6,7 +6,6 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
-import java.util.Vector;
 
 import static java.lang.Thread.yield;
 
@@ -26,7 +25,7 @@ class ServerWorker implements Runnable{
 
     /**
      *
-     * @param socket The socket which this worker should transmit and recieve from
+     * @param socket The socket which this worker should transmit and receive from
      * @param msgs The blocking queue to deliver messages to
      * @throws IOException If the the socket is unable to produce input and/or output streams
      */
@@ -56,12 +55,12 @@ class ServerWorker implements Runnable{
 
                     switch (msg.split(" ")[0]){
                         case "add"  : case "delete" :
-                            //add the recieved message to the queue for the server to broadcast later
+                            //add the received message to the queue for the server to broadcast later
                             deliver(msg);
                             break;
                         case "update" :
                             //TODO start queuing messages while retrieving missed ones
-                            isRecovering = true;
+                            //isRecovering = true;
                             recoveryManager.recover(this, Integer.parseInt(msg.split(" ")[1]));
                             break;
                         case "tn" :

@@ -41,7 +41,7 @@ public class Client{
     private static Thread			receiverThread		= null;
     private static Thread			senderThread		= null;
     
-    public static final boolean		debugging			= false;
+    public static final boolean		debugging			= true;
     
     public static final String		id					= Client.getSelfMAC() + new Random().nextInt();
     
@@ -85,17 +85,14 @@ public class Client{
     		dataInputStream = new DataInputStream(socket.getInputStream());
     		dataOutputStream = new DataOutputStream(socket.getOutputStream());
     		
-    		
-    		dataOutputStream.writeUTF("update " + 0);
-
-            //recieve and format the response
-			String[] msgs = Pattern.compile("\\[|,|\\]").split(dataInputStream.readUTF());
-			
-			System.out.println(Arrays.toString(msgs));
-            
-            
+    		initialize();
     	} catch(IOException e) {
-    		
+    		System.err.println("ERROR IN CLIENT. Cannot establish the required connections to the proxy.");
+    		if(debugging) {
+    			e.printStackTrace();
+    		} else {
+    			return;
+    		}
     	}
     	
     	ClientReceiver	receiver	= new ClientReceiver(dataInputStream, approvedUpdates, unapprovedUpdates);
@@ -108,7 +105,28 @@ public class Client{
     	senderThread.start();
     }
     
-    public static void performIncomingUpdate(DocumentUpdate incomingUpdate) {
+    private static void initialize() throws IOException {
+    	dataOutputStream.writeUTF("update 0");
+
+        //recieve and format the response
+		String[] msgs = Pattern.compile("\\[|,|\\]").split(dataInputStream.readUTF());
+		int count = msgs.length;
+		
+		System.out.println(Arrays.toString(msgs));
+		
+		for(int i = 0; i < count; i++) {
+			String msg = msgs[i];
+			if(msg.trim().matches("")) {
+				continue;
+			}
+			DocumentUpdate newUpdate = DocumentUpdate.fromString(msg);
+			if(newUpdate != null) {
+				performIncomingUpdate(newUpdate);
+			}
+		}
+	}
+
+	public static void performIncomingUpdate(DocumentUpdate incomingUpdate) {
     	if(!incomingUpdate.getID().matches(Client.id)) {
     		TN++;
     		performOutgoingUpdate(incomingUpdate);
@@ -116,6 +134,22 @@ public class Client{
     		Client.removeUnapprovedUpdate(incomingUpdate);
     	}
     }
+	
+	public static void performIncomingUpdates(String updates) {
+		String[] msgs = Pattern.compile("\\[|,|\\]").split(updates);
+		System.out.println(Arrays.toString(msgs));
+		int count = msgs.length;
+		for(int i = 0; i < count; i++) {
+			String msg = msgs[i];
+			if(msg.trim().matches("")) {
+				continue;
+			}
+			DocumentUpdate newUpdate = DocumentUpdate.fromString(msg);
+			if(newUpdate != null) {
+				performIncomingUpdate(newUpdate);
+			}
+		}
+	}
     
     public static void performOutgoingUpdate(DocumentUpdate outgoingUpdate) {
     	if(Client.debugging) {

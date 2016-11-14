@@ -34,6 +34,10 @@ public class ClientReceiver implements Runnable {
 				if(Client.debugging) {
 					System.out.print("input: " + input);
 				}
+				if(input.startsWith("[")) {
+					Client.performIncomingUpdates(input);
+					continue;
+				}
 			} catch(IOException e) {
 				System.err.println("ERROR IN CLIENT. Cannot read from the incoming stream.");
 				if(Client.debugging) {

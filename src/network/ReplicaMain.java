@@ -52,7 +52,7 @@ public class ReplicaMain implements Runnable{
                             break;
                         case "query_tn" :
                             //reply with the current TN
-                            dataOutputStream.writeUTF("tn " + (fileHandler.read().length - 1));
+                            dataOutputStream.writeUTF("tn " + (fileHandler.read().length));
                             break;
                         case "transformations" :
                             //prepare yourself
@@ -86,7 +86,8 @@ public class ReplicaMain implements Runnable{
         //TODO compare received messages to existing ones to avoid accidental duplication
 
         //send an update request
-        dataOutputStream.writeUTF("update " + fileHandler.read().length);
+    	String[] current = fileHandler.read();
+        dataOutputStream.writeUTF("update " + current.length);
 
         //recieve and format the response
         String[] msgs = Pattern.compile("\\[|,|\\]").split(dataInputStream.readUTF());

@@ -13,7 +13,7 @@ class RecoveryManager {
     private Vector<ServerReplicaWorker> serverWorkers = new Vector<>(); //A list of available replicas to consult
     String recoveryList = "[]"; //A mailbox for the list of changes needed for a recovery that is set by a ServerReplicaWorker in a different thread
     boolean timeoutFlag = false;
-    static int defaultTimout = 10000;
+    static int defaultTimout = 3000;
     static String emptyList = "[]";
 
     RecoveryManager(Vector<ServerReplicaWorker> serverWorkers){
@@ -32,13 +32,13 @@ class RecoveryManager {
 
         while (!recoveryComplete){
             //if no other servers are online, abort
-            if (serverWorkers.size() < 2){
-                try {
-                    recoverer.sendUTF("[]");
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
+//            if (serverWorkers.size() < 2){
+//                try {
+//                    recoverer.sendUTF("[]");
+//                } catch (IOException e) {
+//                    e.printStackTrace();
+//                }
+//            }
 
             //request all replica TNs
             for (ServerReplicaWorker s : serverWorkers){
@@ -83,6 +83,13 @@ class RecoveryManager {
             }
             //abort if nobody has a higher tn
             if (master == null){
+            	recoveryComplete = true;
+            	try {
+					recoverer.sendUTF(emptyList);
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
                 break;
             }
 
@@ -99,6 +106,8 @@ class RecoveryManager {
 
             //wait for a reply
             startTimer();
+            
+            timeoutFlag = false;
 
             while(!timeoutFlag && (recoveryList.equals(emptyList))){Thread.yield();}
 
