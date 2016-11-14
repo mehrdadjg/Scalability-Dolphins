@@ -2,7 +2,6 @@ package network;
 
 import java.io.DataInputStream;
 import java.io.IOException;
-import java.net.Socket;
 import java.util.ArrayList;
 
 import launcher.Client;
@@ -11,7 +10,6 @@ import util.DocumentUpdate;
 
 public class ClientReceiver implements Runnable {
 	
-	private Socket						socket;
 	private ArrayList<DocumentUpdate>	approvedUpdates;
 	private ArrayList<DocumentUpdate>	unapprovedUpdates;
 	
@@ -19,17 +17,10 @@ public class ClientReceiver implements Runnable {
 	
 	private DataInputStream				dataInputStream;
 	
-	public ClientReceiver(Socket socket, ArrayList<DocumentUpdate> approvedUpdates, ArrayList<DocumentUpdate> unapprovedUpdates) {
-		this.socket				= socket;
+	public ClientReceiver(DataInputStream dataInputStream, ArrayList<DocumentUpdate> approvedUpdates, ArrayList<DocumentUpdate> unapprovedUpdates) {
+		this.dataInputStream	= dataInputStream;
 		this.approvedUpdates	= approvedUpdates;
 		this.unapprovedUpdates	= unapprovedUpdates;
-		
-		try {
-			dataInputStream = new DataInputStream(this.socket.getInputStream());
-		} catch(IOException e) {
-			System.err.println("ERROR IN CLIENT. Cannot establish an incoming stream.");
-			e.printStackTrace();
-		}
 	}
 
 	@Override

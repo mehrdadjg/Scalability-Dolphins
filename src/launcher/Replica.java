@@ -11,7 +11,7 @@ import java.util.Scanner;
  * https://docs.oracle.com/javase/tutorial/networking/datagrams/broadcasting.html
  */
 public class Replica {
-    private static String ip = "192.168.1.102";
+    private static String ip = "127.0.0.1";
     private static int port = 3729;
 
     public static void main(String[] args){

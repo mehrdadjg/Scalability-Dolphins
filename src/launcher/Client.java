@@ -3,14 +3,18 @@ package launcher;
 import util.DocumentUpdate;
 import util.DocumentUpdate.PositionType;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Random;
 import java.util.Scanner;
+import java.util.regex.Pattern;
 
 import network.ClientReceiver;
 import network.ClientSender;
@@ -22,21 +26,24 @@ public class Client{
     private static ArrayList<DocumentUpdate> approvedUpdates = new ArrayList<>();
     private static ArrayList<DocumentUpdate> unapprovedUpdates = new ArrayList<>();
     
-    private static Socket 		socket			= null;
+    private static Socket 			socket				= null;
     
-    private static String 		host			= "127.0.0.1";
-    private static int    		port 			= 2227;			// TODO Link this to Server#port
+    private static DataInputStream	dataInputStream		= null;
+    private static DataOutputStream	dataOutputStream	= null;
     
-    private static String		message 		= "";
+    private static String 			host				= "127.0.0.1";
+    private static int    			port 				= 2227;			// TODO Link this to Server#port
     
-    private static int			TN				= 0;
+    private static String			message 			= "";
     
-    private static Thread		receiverThread	= null;
-    private static Thread		senderThread	= null;
+    private static int				TN					= 0;
     
-    public static final boolean debugging		= false;
+    private static Thread			receiverThread		= null;
+    private static Thread			senderThread		= null;
     
-    public static final String	id				= Client.getSelfMAC() + new Random().nextInt();
+    public static final boolean		debugging			= false;
+    
+    public static final String		id					= Client.getSelfMAC() + new Random().nextInt();
     
     public static void main(String[] args){
     	System.out.println("The default proxy server address is " + host + ":" + String.valueOf(port));
@@ -74,8 +81,25 @@ public class Client{
 			
     	}
     	
-    	ClientReceiver	receiver	= new ClientReceiver(socket, approvedUpdates, unapprovedUpdates);
-    	ClientSender	sender		= new ClientSender(socket);
+    	try {
+    		dataInputStream = new DataInputStream(socket.getInputStream());
+    		dataOutputStream = new DataOutputStream(socket.getOutputStream());
+    		
+    		
+    		dataOutputStream.writeUTF("update " + 0);
+
+            //recieve and format the response
+			String[] msgs = Pattern.compile("\\[|,|\\]").split(dataInputStream.readUTF());
+			
+			System.out.println(Arrays.toString(msgs));
+            
+            
+    	} catch(IOException e) {
+    		
+    	}
+    	
+    	ClientReceiver	receiver	= new ClientReceiver(dataInputStream, approvedUpdates, unapprovedUpdates);
+    	ClientSender	sender		= new ClientSender(dataOutputStream);
     	
     	receiverThread	= new Thread(receiver);
     	senderThread	= new Thread(sender);
