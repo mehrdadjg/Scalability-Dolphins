@@ -33,75 +33,73 @@ class RecoveryManager {
 
         while (!recoveryComplete){
             //if no other servers are online, abort
-            if (serverWorkers.size() < 2){
-                try {
-                    recoverer.sendUTF("[]");
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
 
-            //request all replica TNs
-            for (ServerReplicaWorker s : serverWorkers){
+            if (serverWorkers.size() > 1) {
 
-                if (s.equals(recoverer)){
-                    //Skip the recoverer when checking for current TNs
-                    continue;
-                }
-                s.knownTN = -1;
+                //request all replica TNs
+                for (ServerReplicaWorker s : serverWorkers) {
 
-                try {
-                    s.sendUTF("query_tn");
-                } catch (IOException e) {
-                    // replica has failed, remove it from the list of replicas and shut it down
-                    serverWorkers.remove(s);
-                    s.shutdown();
-                    //e.printStackTrace();
-                }
-            }
+                    if (s.equals(recoverer)) {
+                        //Skip the recoverer when checking for current TNs
+                        continue;
+                    }
+                    s.knownTN = -1;
 
-            //pick server with highest TN
-            ServerReplicaWorker master = null;//serverWorkers.firstElement();
-
-
-            startTimer();
-
-            while(!timeoutFlag){Thread.yield();}
-
-            int TNmax = -1;
-            for (ServerReplicaWorker s : serverWorkers){
-
-                if (s.equals(recoverer)){
-                    //Skip the recoverer when checking for current TNs
-                    continue;
+                    try {
+                        s.sendUTF("query_tn");
+                    } catch (IOException e) {
+                        // replica has failed, remove it from the list of replicas and shut it down
+                        serverWorkers.remove(s);
+                        s.shutdown();
+                        //e.printStackTrace();
+                    }
                 }
 
+                //pick server with highest TN
+                ServerReplicaWorker master = null;//serverWorkers.firstElement();
 
-                if (s.knownTN > TNmax){
-                    master = s;
-                    TNmax = s.knownTN;
+
+                startTimer();
+
+                while (!timeoutFlag) {
+                    Thread.yield();
+                }
+
+                int TNmax = -1;
+                for (ServerReplicaWorker s : serverWorkers) {
+
+                    if (s.equals(recoverer)) {
+                        //Skip the recoverer when checking for current TNs
+                        continue;
+                    }
+
+
+                    if (s.knownTN > TNmax) {
+                        master = s;
+                        TNmax = s.knownTN;
+                    }
+                }
+
+
+                if (master != null && TNmax > TNold) {
+                    //retrieve all missed changes
+                    try {
+                        master.sendUTF("transformations " + TNold + " " + TNmax);
+                    } catch (IOException e) {
+                        //remove failed server and restart recovery if the master has failed
+                        serverWorkers.remove(master);
+                        master.shutdown();
+                        continue;
+                        //e.printStackTrace();
+                    }
+                }
+
+                //wait for a reply
+                startTimer();
+                while (!timeoutFlag && (recoveryList.equals(emptyList))) {
+                    Thread.yield();
                 }
             }
-            //abort if nobody has a higher tn
-            if (master == null){
-                break;
-            }
-
-            //retrieve all missed changes
-            try {
-                master.sendUTF("transformations " + TNold + " " + TNmax);
-            } catch (IOException e) {
-                //remove failed server and restart recovery if the master has failed
-                serverWorkers.remove(master);
-                master.shutdown();
-                continue;
-                //e.printStackTrace();
-            }
-
-            //wait for a reply
-            startTimer();
-
-            while(!timeoutFlag && (recoveryList.equals(emptyList))){Thread.yield();}
 
             //forward changes to recoverer
             try {
@@ -122,7 +120,8 @@ class RecoveryManager {
         }
 
         //reset and prepare for the next request
-        recoveryList = "[]";
+        recoveryList = emptyList;
+
     }
 
     private void startTimer(){
