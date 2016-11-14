@@ -8,9 +8,10 @@ import java.util.Scanner;
 /**
  * Launcher for a backend replica server. This is the entry point for the backend server portion
  * This should remain as simple as possible, and only initialize the startup sequence for the server
+ * https://docs.oracle.com/javase/tutorial/networking/datagrams/broadcasting.html
  */
 public class Replica {
-    private static String ip = "192.168.1.102";
+    private static String ip = "127.0.0.1";
     private static int port = 3729;
 
     public static void main(String[] args){

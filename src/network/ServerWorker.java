@@ -18,18 +18,23 @@ class ServerWorker implements Runnable{
     private DataOutputStream dataOutputStream;
     private boolean isRunning;
     private BlockingQueue msgs;
+    private RecoveryManager recoveryManager;
+    private boolean isRecovering = false;
+    int knownTN;
+    boolean TNupdated = false;
 
     /**
      *
-     * @param socket The socket which this worker should transmit and recieve from
+     * @param socket The socket which this worker should transmit and receive from
      * @param msgs The blocking queue to deliver messages to
      * @throws IOException If the the socket is unable to produce input and/or output streams
      */
-    ServerWorker(Socket socket, BlockingQueue msgs) throws IOException {
+    ServerWorker(Socket socket, BlockingQueue msgs, RecoveryManager recoveryManager) throws IOException {
         this.socket = socket;
         this.msgs = msgs;
         dataOutputStream = new DataOutputStream(socket.getOutputStream());
         dataInputStream = new DataInputStream(socket.getInputStream());
+        this.recoveryManager = recoveryManager;
     }
 
     @Override
@@ -39,6 +44,7 @@ class ServerWorker implements Runnable{
 
             isRunning = true;
             while (isRunning){
+                if (isRecovering){continue;}
 
                 //readUTF() blocks until success, so we must check before calling it to avoid waiting if a packet isnt ready
                 if (dataInputStream.available() > 0){
@@ -47,10 +53,32 @@ class ServerWorker implements Runnable{
                     //TODO replace print statements with logging framework
                     System.out.println("Incoming Message from " + socket.getInetAddress() + ":" + socket.getPort() + " > " +  msg);
 
-                    //add the recieved message to the queue for the server to broadcast later
-                    msgs.add(msg);
+                    switch (msg.split(" ")[0]){
+                        case "add"  : case "delete" :
+                            //add the received message to the queue for the server to broadcast later
+                            deliver(msg);
+                            break;
+                        case "update" :
+                            //TODO start queuing messages while retrieving missed ones
+                            //isRecovering = true;
+                            recoveryManager.recover(this, Integer.parseInt(msg.split(" ")[1]));
+                            break;
+                        case "tn" :
+                            knownTN = Integer.parseInt(msg.split(" ")[1]);
+                            TNupdated = true;
+                            break;
+                        default:
+                            if (msg.startsWith("[")){
+                                recoveryManager.recoveryList = msg;
+                            }
+                            else {
+                                //Discard messages that are not recognized as part of the protocol
+                                //TODO reply with <Error> according to protocol
+                                System.out.println("Unknown message type recieved. Discarding > " + msg);
+                                break;
+                            }
+                    }
                 }
-
                 yield();
             }
 
@@ -62,6 +90,10 @@ class ServerWorker implements Runnable{
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    protected void deliver(String msg){
+        msgs.add(msg);
     }
 
     /**
@@ -87,13 +119,18 @@ class ServerWorker implements Runnable{
      */
     boolean isConnected(){
         try {
-            if (dataInputStream.readByte() == -1){
+            if (dataInputStream.available() == 1){
                 return false;
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            //e.printStackTrace();
+            return false;
         }
 
         return true;
+    }
+
+    void resumeAfterRecovery(){
+        isRecovering = false;
     }
 }

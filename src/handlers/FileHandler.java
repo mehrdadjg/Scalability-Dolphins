@@ -22,7 +22,7 @@ public class FileHandler {
 		file = new File(System.getProperty("user.dir") + File.separator + filename);
 
 		//create the writer object which will be used in all future write operations
-		fileWriter = new FileWriter(file);
+		fileWriter = new FileWriter(file, true);
 	}
 
 	/**
@@ -42,12 +42,18 @@ public class FileHandler {
 	 */
 	public String[] read(){
 		try {
-			return new String(Files.readAllBytes(file.toPath())).split(newLine);
+			String[] output = new String(Files.readAllBytes(file.toPath())).split(newLine);
+			if(output.length == 1 && output[0].trim().matches("")) {
+				return new String[0];
+			} else {
+				return output;
+			}
 		} catch (IOException e) {
 			//implies file does not exist
 			//e.printStackTrace();
 
 			//return empty array
+			System.err.println("sdfsdf");
 			return new String[0];
 		}
 	}
