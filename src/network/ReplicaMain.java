@@ -17,13 +17,12 @@ public class ReplicaMain implements Runnable{
     private String proxyIp;
     private int proxyPort;
     private boolean isRunning;
-    private FileHandler fileHandler;
     public boolean recoveryMode = false;
+    private FileHandler fileHandler = new FileHandler("file.txt");
 
     public ReplicaMain(String ip, int port) throws IOException {
         this.proxyIp = ip;
         this.proxyPort = port;
-        fileHandler = new FileHandler("file.txt");
     }
 
     /**
@@ -36,7 +35,7 @@ public class ReplicaMain implements Runnable{
 
             //retrieve file contents
             if (recoveryMode){
-                requestUpdates(dataInputStream, dataOutputStream);
+                //requestUpdates(dataInputStream, dataOutputStream);
             }
 
             isRunning = true;

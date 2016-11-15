@@ -21,7 +21,6 @@ public class ServerMain implements Runnable{
     private Vector<ServerWorker> serverClients = new Vector<>();
     private Vector<ServerReplicaWorker> serverReplicas = new Vector<>();
     private BlockingQueue msgs = new BlockingQueue();
-    private RecoveryManager recoveryManager = new RecoveryManager(serverReplicas);
 
     public ServerMain(int clientPort, int replicaPort){
         this.clientPort = clientPort;
@@ -45,7 +44,7 @@ public class ServerMain implements Runnable{
                 try{
                     Socket socket = serverClientSocket.accept();
                     System.out.println("Accepted new client at:" + socket.getInetAddress() + ":" + socket.getPort());
-                    ServerWorker serverWorker = new ServerWorker(socket, msgs, recoveryManager);
+                    ServerWorker serverWorker = new ServerWorker(socket, msgs, serverReplicas);
                     serverClients.addElement(serverWorker);
                     executorService.submit(serverWorker);
                 } catch (SocketTimeoutException s){
@@ -55,7 +54,7 @@ public class ServerMain implements Runnable{
                 try{
                     Socket socket = serverReplicaSocket.accept();
                     System.out.println("Accepted new replica at: " + socket.getInetAddress() + ":" + socket.getPort());
-                    ServerReplicaWorker serverReplicaWorker = new ServerReplicaWorker(socket, msgs, recoveryManager);
+                    ServerReplicaWorker serverReplicaWorker = new ServerReplicaWorker(socket, msgs, serverReplicas);
                     serverReplicas.addElement(serverReplicaWorker);
                     executorService.submit(serverReplicaWorker);
                 } catch (SocketTimeoutException s){
@@ -106,6 +105,7 @@ public class ServerMain implements Runnable{
         for (ServerWorker s : serverClients){
             try {
                 s.sendUTF(msg);
+                System.out.println("sent message to >" + s);
             } catch (IOException e) {
                 //if sending has failed, client has likely disconnected
                 System.out.println("client disconnected");

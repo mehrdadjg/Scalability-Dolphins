@@ -6,6 +6,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
+import java.util.Vector;
 
 import static java.lang.Thread.yield;
 
@@ -18,23 +19,24 @@ class ServerWorker implements Runnable{
     private DataOutputStream dataOutputStream;
     private boolean isRunning;
     private BlockingQueue msgs;
-    private RecoveryManager recoveryManager;
     boolean isRecovering = false;
     int knownTN;
     boolean TNupdated = false;
+    private Vector<ServerReplicaWorker> serverReplicas;
 
     /**
      *
      * @param socket The socket which this worker should transmit and receive from
      * @param msgs The blocking queue to deliver messages to
+     * @param serverReplicas a reference to the list of currently connected replicas
      * @throws IOException If the the socket is unable to produce input and/or output streams
      */
-    ServerWorker(Socket socket, BlockingQueue msgs, RecoveryManager recoveryManager) throws IOException {
+    ServerWorker(Socket socket, BlockingQueue msgs, Vector<ServerReplicaWorker> serverReplicas) throws IOException {
         this.socket = socket;
         this.msgs = msgs;
+        this.serverReplicas = serverReplicas;
         dataOutputStream = new DataOutputStream(socket.getOutputStream());
         dataInputStream = new DataInputStream(socket.getInputStream());
-        this.recoveryManager = recoveryManager;
     }
 
     @Override
@@ -44,7 +46,6 @@ class ServerWorker implements Runnable{
 
             isRunning = true;
             while (isRunning){
-                //if (isRecovering){continue;}
 
                 //readUTF() blocks until success, so we must check before calling it to avoid waiting if a packet isnt ready
                 if (dataInputStream.available() > 0){
@@ -59,24 +60,26 @@ class ServerWorker implements Runnable{
                             deliver(msg);
                             break;
                         case "update" :
-                            //TODO start queuing messages while retrieving missed ones
-                            //isRecovering = true;
-                            recoveryManager.recover(this, Integer.parseInt(msg.split(" ")[1]));
+                            //TODO send list of connected replicas
+                            String replicaList = "[";
+                            for (ServerReplicaWorker s : serverReplicas){
+                                if (this != s){
+                                    replicaList += "," + s;
+                                }
+                            }
+                            replicaList = replicaList.replaceFirst(",","") + "]";
+                            sendUTF(replicaList);
                             break;
                         case "tn" :
                             knownTN = Integer.parseInt(msg.split(" ")[1]);
                             TNupdated = true;
                             break;
                         default:
-                            if (msg.startsWith("[")){
-                                recoveryManager.recoveryList = msg;
-                            }
-                            else {
-                                //Discard messages that are not recognized as part of the protocol
-                                //TODO reply with <Error> according to protocol
-                                System.out.println("Unknown message type recieved. Discarding > " + msg);
-                                break;
-                            }
+                            //Discard messages that are not recognized as part of the protocol
+                            //TODO reply with <Error> according to protocol
+                            sendUTF("error:incorrect format");
+                            break;
+
                     }
                 }
                 yield();
@@ -109,8 +112,11 @@ class ServerWorker implements Runnable{
      * @throws IOException if the dataOutputStream fails to send
      */
     void sendUTF(String msg)throws IOException{
+        System.out.println("Sending to >" + toString());
+        System.out.println("\t Message > " + msg);
         dataOutputStream.writeUTF(msg);
         dataOutputStream.flush();
+        System.out.println("\t sent");
     }
 
     /**
@@ -128,6 +134,11 @@ class ServerWorker implements Runnable{
         }
 
         return true;
+    }
+
+    @Override
+    public String toString() {
+        return (socket.getRemoteSocketAddress().toString().replaceFirst("/",""));
     }
 
     void resumeAfterRecovery(){
