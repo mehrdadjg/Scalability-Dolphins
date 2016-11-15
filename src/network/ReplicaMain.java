@@ -6,6 +6,9 @@ import java.io.IOException;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.Arrays;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.Vector;
 import java.util.regex.Pattern;
 
 import handlers.FileHandler;
@@ -19,6 +22,9 @@ public class ReplicaMain implements Runnable{
     private boolean isRunning;
     public boolean recoveryMode = false;
     private FileHandler fileHandler = new FileHandler("file.txt");
+    private ReplicaReceiver replicaReceiver = new ReplicaReceiver(fileHandler);
+    private static int replicaPort = 4455;
+    private boolean timeoutFlag;
 
     public ReplicaMain(String ip, int port) throws IOException {
         this.proxyIp = ip;
@@ -35,8 +41,10 @@ public class ReplicaMain implements Runnable{
 
             //retrieve file contents
             if (recoveryMode){
-                //requestUpdates(dataInputStream, dataOutputStream);
+                requestUpdates(dataInputStream, dataOutputStream);
             }
+
+            new Thread(replicaReceiver).start();
 
             isRunning = true;
             while (isRunning) {
@@ -62,8 +70,7 @@ public class ReplicaMain implements Runnable{
                             break;
                         default:
                             //Discard messages that are not recognized as part of the protocol
-                            //TODO reply with <Error> according to protocol
-                            System.out.println("Unknown message type recieved. Discarding > " + msg);
+                            dataOutputStream.writeUTF("error:incorrect format");
                             break;
                     }
                 }
@@ -78,6 +85,7 @@ public class ReplicaMain implements Runnable{
         fileHandler.close();
     }
 
+
     /**
      * Requests and downloads missed messages and saves them to file
      * @param dataInputStream The InputStream used to download the messages. remains open
@@ -88,7 +96,66 @@ public class ReplicaMain implements Runnable{
         //TODO compare received messages to existing ones to avoid accidental duplication
 
         //send an update request
-        dataOutputStream.writeUTF("update " + (fileHandler.read().length));
+        dataOutputStream.writeUTF("update");
+
+        //parse the IP addresses in the reply
+        String[] replicaListString = Pattern.compile("\\[|,|\\]").split(dataInputStream.readUTF());
+
+        //create connections to all of the IP addresses
+        Vector<SocketStreamContainer> replicas = new Vector<>();
+        for (String s : replicaListString){
+            try {
+                replicas.add(new SocketStreamContainer(new Socket(s.split(":")[0],replicaPort)));
+            } catch (IOException e){
+                //e.printStackTrace();
+            }
+        }
+
+        //query all replicas for their TNs
+        for (SocketStreamContainer s : replicas){
+            try{
+                s.dataOutputStream.writeUTF("query_tn");
+            } catch (IOException e){
+                s.close();
+                replicas.remove(s);
+            }
+        }
+
+        //wait for reply
+        timeoutFlag = false;
+        Timer timer = new Timer();
+        timer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                timeoutFlag = true;
+                timer.cancel();
+            }
+        }, 500);
+        while (!timeoutFlag){Thread.yield();}
+
+        //Find the maximum
+        //TODO handle missing replicas
+        int TNold = fileHandler.read().length;
+        int TNmax = -1;
+        SocketStreamContainer master = null;
+        for (SocketStreamContainer s : replicas){
+            try{
+                String reply = s.dataInputStream.readUTF();
+                int TNcurrent = Integer.parseInt(reply.split(" ")[1]);
+                if (TNcurrent > TNmax && TNcurrent > TNold){
+                    master = s;
+                    TNmax = TNcurrent;
+                }
+            } catch (IOException e){
+                s.close();
+                replicas.remove(s);
+            }
+        }
+
+        //request transformations from higher replica
+        if (master != null){
+            master.dataOutputStream.writeUTF("transformations " + TNold + " "+ TNmax);
+        }
 
         //recieve and format the response
         String[] msgs = Pattern.compile("\\[|,|\\]").split(dataInputStream.readUTF());
@@ -105,5 +172,38 @@ public class ReplicaMain implements Runnable{
 
     public void shutdown() {
         isRunning = false;
+        replicaReceiver.shutdown();
+    }
+}
+
+class SocketStreamContainer{
+    Socket socket;
+    DataInputStream dataInputStream;
+    DataOutputStream dataOutputStream;
+
+    SocketStreamContainer(Socket socket) throws IOException{
+        this.socket = socket;
+        dataInputStream = new DataInputStream(socket.getInputStream());
+        dataOutputStream = new DataOutputStream(socket.getOutputStream());
+    }
+
+    void close(){
+        try {
+            dataOutputStream.close();
+        } catch (IOException e) {
+            //e.printStackTrace();
+        }
+
+        try {
+            dataInputStream.close();
+        } catch (IOException e) {
+            //e.printStackTrace();
+        }
+
+        try {
+            socket.close();
+        } catch (IOException e) {
+            //e.printStackTrace();
+        }
     }
 }

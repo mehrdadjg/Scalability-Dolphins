@@ -44,7 +44,7 @@ public class ServerMain implements Runnable{
                 try{
                     Socket socket = serverClientSocket.accept();
                     System.out.println("Accepted new client at:" + socket.getInetAddress() + ":" + socket.getPort());
-                    ServerWorker serverWorker = new ServerWorker(socket, msgs, serverReplicas);
+                    ServerWorker serverWorker = new ServerWorker(socket, msgs);
                     serverClients.addElement(serverWorker);
                     executorService.submit(serverWorker);
                 } catch (SocketTimeoutException s){

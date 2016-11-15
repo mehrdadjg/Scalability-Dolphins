@@ -6,7 +6,6 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
-import java.util.Vector;
 
 import static java.lang.Thread.yield;
 
@@ -22,19 +21,16 @@ class ServerWorker implements Runnable{
     boolean isRecovering = false;
     int knownTN;
     boolean TNupdated = false;
-    private Vector<ServerReplicaWorker> serverReplicas;
 
     /**
      *
      * @param socket The socket which this worker should transmit and receive from
      * @param msgs The blocking queue to deliver messages to
-     * @param serverReplicas a reference to the list of currently connected replicas
      * @throws IOException If the the socket is unable to produce input and/or output streams
      */
-    ServerWorker(Socket socket, BlockingQueue msgs, Vector<ServerReplicaWorker> serverReplicas) throws IOException {
+    ServerWorker(Socket socket, BlockingQueue msgs) throws IOException {
         this.socket = socket;
         this.msgs = msgs;
-        this.serverReplicas = serverReplicas;
         dataOutputStream = new DataOutputStream(socket.getOutputStream());
         dataInputStream = new DataInputStream(socket.getInputStream());
     }
@@ -57,18 +53,10 @@ class ServerWorker implements Runnable{
                     switch (msg.split(" ")[0]){
                         case "add"  : case "delete" :
                             //add the received message to the queue for the server to broadcast later
-                            deliver(msg);
+                            operationDeliver(msg);
                             break;
                         case "update" :
-                            //TODO send list of connected replicas
-                            String replicaList = "[";
-                            for (ServerReplicaWorker s : serverReplicas){
-                                if (this != s){
-                                    replicaList += "," + s;
-                                }
-                            }
-                            replicaList = replicaList.replaceFirst(",","") + "]";
-                            sendUTF(replicaList);
+                            operationUpdate(msg);
                             break;
                         case "tn" :
                             knownTN = Integer.parseInt(msg.split(" ")[1]);
@@ -76,7 +64,6 @@ class ServerWorker implements Runnable{
                             break;
                         default:
                             //Discard messages that are not recognized as part of the protocol
-                            //TODO reply with <Error> according to protocol
                             sendUTF("error:incorrect format");
                             break;
 
@@ -95,7 +82,18 @@ class ServerWorker implements Runnable{
         }
     }
 
-    private void deliver(String msg){
+
+    /**
+     * Retrieves updates with a TN of <TN> or higher from any available replica and sends them to the client
+     * @param msg a string of the format "Update <TN>"
+     * @throws IOException if sending process fails. Likely due to the client disconnecting.
+     */
+    void operationUpdate(String msg) throws IOException {
+        //TODO retrieve updates and send them to client
+        System.out.println("N/I Code 101");
+    }
+
+    private void operationDeliver(String msg){
         msgs.add(msg);
     }
 
