@@ -12,6 +12,7 @@ import java.util.Vector;
 import java.util.regex.Pattern;
 
 import handlers.FileHandler;
+import util.SocketStreamContainer;
 
 /**
  * Handles the incoming and outgoing connections
@@ -176,34 +177,3 @@ public class ReplicaMain implements Runnable{
     }
 }
 
-class SocketStreamContainer{
-    Socket socket;
-    DataInputStream dataInputStream;
-    DataOutputStream dataOutputStream;
-
-    SocketStreamContainer(Socket socket) throws IOException{
-        this.socket = socket;
-        dataInputStream = new DataInputStream(socket.getInputStream());
-        dataOutputStream = new DataOutputStream(socket.getOutputStream());
-    }
-
-    void close(){
-        try {
-            dataOutputStream.close();
-        } catch (IOException e) {
-            //e.printStackTrace();
-        }
-
-        try {
-            dataInputStream.close();
-        } catch (IOException e) {
-            //e.printStackTrace();
-        }
-
-        try {
-            socket.close();
-        } catch (IOException e) {
-            //e.printStackTrace();
-        }
-    }
-}
