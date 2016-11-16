@@ -65,14 +65,17 @@ public class ReplicaMain implements Runnable{
                         case "query_tn" :
                             //reply with the current TN
                             dataOutputStream.writeUTF("tn " + (fileHandler.read().length));
+                            dataOutputStream.flush();
                             break;
                         case "transformations" :
                             //prepare yourself
                             dataOutputStream.writeUTF(Arrays.toString(Arrays.copyOfRange(fileHandler.read(), Integer.parseInt(msg.split(" ")[1]), Integer.parseInt(msg.split(" ")[2]))));
+                            dataOutputStream.flush();
                             break;
                         default:
                             //Discard messages that are not recognized as part of the protocol
                             dataOutputStream.writeUTF("error:incorrect format");
+                            dataOutputStream.flush();
                             break;
                     }
                 }
@@ -99,6 +102,7 @@ public class ReplicaMain implements Runnable{
 
         //send an update request
         dataOutputStream.writeUTF("update");
+        dataOutputStream.flush();
 
         //parse the IP addresses in the reply
         String[] replicaListString = Pattern.compile("\\[|,|\\]").split(dataInputStream.readUTF());
@@ -117,6 +121,7 @@ public class ReplicaMain implements Runnable{
         for (SocketStreamContainer s : replicas){
             try{
                 s.dataOutputStream.writeUTF("query_tn");
+                dataOutputStream.flush();
             } catch (IOException e){
                 s.close();
                 replicas.remove(s);
@@ -157,8 +162,9 @@ public class ReplicaMain implements Runnable{
         //request transformations from higher replica
         if (master != null){
             master.dataOutputStream.writeUTF("transformations " + TNold + " "+ TNmax);
+            dataOutputStream.flush();
             //recieve and format the response
-            String[] msgs = Pattern.compile("\\[|,|\\]").split(dataInputStream.readUTF());
+            String[] msgs = Pattern.compile("\\[|,|\\]").split(master.dataInputStream.readUTF());
 
             //store nonempty values from the response array
             for (int i = 1; i < msgs.length; i++){

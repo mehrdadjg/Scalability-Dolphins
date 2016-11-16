@@ -48,14 +48,17 @@ public class ReplicaReceiver implements Runnable{
                                 case "query_tn" :
                                     //reply with the current TN
                                     dataOutputStream.writeUTF("tn " + (fileHandler.read().length));
+                                    dataOutputStream.flush();
                                     break;
                                 case "transformations" :
                                     //prepare yourself
                                     dataOutputStream.writeUTF(Arrays.toString(Arrays.copyOfRange(fileHandler.read(), Integer.parseInt(msg.split(" ")[1]), Integer.parseInt(msg.split(" ")[2]))));
+                                    dataOutputStream.flush();
                                     break;
                                 default:
                                     //Discard messages that are not recognized as part of the protocol
                                     dataOutputStream.writeUTF("error:incorrect format");
+                                    dataOutputStream.flush();
                                     break;
                             }
                             timer.startTimer(timeout);
