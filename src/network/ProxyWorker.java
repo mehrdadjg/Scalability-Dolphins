@@ -91,6 +91,7 @@ class ProxyWorker implements Runnable{
     void operationUpdate(String msg) throws IOException {
         //TODO retrieve updates and send them to client
         System.out.println("N/I Code 101");
+        sendUTF("[]");
     }
 
     private void operationDeliver(String msg){

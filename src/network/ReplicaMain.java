@@ -156,19 +156,18 @@ public class ReplicaMain implements Runnable{
         //request transformations from higher replica
         if (master != null){
             master.dataOutputStream.writeUTF("transformations " + TNold + " "+ TNmax);
-        }
+            //recieve and format the response
+            String[] msgs = Pattern.compile("\\[|,|\\]").split(dataInputStream.readUTF());
 
-        //recieve and format the response
-        String[] msgs = Pattern.compile("\\[|,|\\]").split(dataInputStream.readUTF());
-
-        //store nonempty values from the response array
-        for (int i = 1; i < msgs.length; i++){
-            if (msgs[i].length() > 0){
-                fileHandler.append(msgs[i]);
+            //store nonempty values from the response array
+            for (int i = 1; i < msgs.length; i++){
+                if (msgs[i].length() > 0){
+                    fileHandler.append(msgs[i]);
+                }
             }
         }
 
-        System.out.println("finished updating from proxy");
+        System.out.println("finished updating");
     }
 
     public void shutdown() {
