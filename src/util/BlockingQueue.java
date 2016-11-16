@@ -13,7 +13,7 @@ public class BlockingQueue{
     }
 
     synchronized public String retrieve(){
-        return msgs.remove(msgs.size() - 1);
+        return msgs.remove(0);
     }
 
     public boolean available(){
