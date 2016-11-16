@@ -13,6 +13,7 @@ import java.util.regex.Pattern;
 
 import handlers.FileHandler;
 import util.SocketStreamContainer;
+import util.TimeoutTimer;
 
 /**
  * Handles the incoming and outgoing connections
@@ -25,7 +26,6 @@ public class ReplicaMain implements Runnable{
     private FileHandler fileHandler = new FileHandler("file.txt");
     private ReplicaReceiver replicaReceiver = new ReplicaReceiver(fileHandler, replicaPort);
     static int replicaPort = 880;
-    private boolean timeoutFlag;
 
     public ReplicaMain(String ip, int port) throws IOException {
         this.proxyIp = ip;
@@ -38,21 +38,22 @@ public class ReplicaMain implements Runnable{
     @Override
     public void run() {
 
-        try(Socket socket = new Socket(proxyIp, proxyPort); DataInputStream dataInputStream = new DataInputStream(socket.getInputStream()); DataOutputStream dataOutputStream = new DataOutputStream((socket.getOutputStream()))) {
+        try(SocketStreamContainer socketStreamContainer = new SocketStreamContainer(new Socket(proxyIp, proxyPort))) {
             System.out.println("Connected to proxy");
 
             //retrieve file contents
             if (recoveryMode){
-                requestUpdates(dataInputStream, dataOutputStream);
+                requestUpdates(socketStreamContainer);
             }
 
+            //Launch the receiver thread which will service incoming update requests
             new Thread(replicaReceiver).start();
 
             isRunning = true;
             while (isRunning) {
                 //readUTF() blocks until success, so we must check before calling it to avoid waiting if a packet isnt ready
-                if (dataInputStream.available() > 0) {
-                    String msg = dataInputStream.readUTF();
+                if (socketStreamContainer.dataInputStream.available() > 0) {
+                    String msg = socketStreamContainer.dataInputStream.readUTF();
 
                     //TODO replace print statements with logging framework
                     System.out.println("Incoming Message from proxy > " + msg);
@@ -64,18 +65,18 @@ public class ReplicaMain implements Runnable{
                             break;
                         case "query_tn" :
                             //reply with the current TN
-                            dataOutputStream.writeUTF("tn " + (fileHandler.read().length));
-                            dataOutputStream.flush();
+                            socketStreamContainer.dataOutputStream.writeUTF("tn " + (fileHandler.read().length));
+                            socketStreamContainer.dataOutputStream.flush();
                             break;
                         case "transformations" :
                             //prepare yourself
-                            dataOutputStream.writeUTF(Arrays.toString(Arrays.copyOfRange(fileHandler.read(), Integer.parseInt(msg.split(" ")[1]), Integer.parseInt(msg.split(" ")[2]))));
-                            dataOutputStream.flush();
+                            socketStreamContainer.dataOutputStream.writeUTF(Arrays.toString(Arrays.copyOfRange(fileHandler.read(), Integer.parseInt(msg.split(" ")[1]), Integer.parseInt(msg.split(" ")[2]))));
+                            socketStreamContainer.dataOutputStream.flush();
                             break;
                         default:
                             //Discard messages that are not recognized as part of the protocol
-                            dataOutputStream.writeUTF("error:incorrect format");
-                            dataOutputStream.flush();
+                            socketStreamContainer.dataOutputStream.writeUTF("error:incorrect format");
+                            socketStreamContainer.dataOutputStream.flush();
                             break;
                     }
                 }
@@ -93,19 +94,18 @@ public class ReplicaMain implements Runnable{
 
     /**
      * Requests and downloads missed messages and saves them to file
-     * @param dataInputStream The InputStream used to download the messages. remains open
-     * @param dataOutputStream The outputStream used to request the messages. remains open
+     * @param proxy The SocketStreamContainer object which has the currently open streams to the proxy
      * @throws IOException if the streams are disconnected
      */
-    private void requestUpdates(DataInputStream dataInputStream,DataOutputStream dataOutputStream) throws IOException {
+    private void requestUpdates(SocketStreamContainer proxy) throws IOException {
         //TODO compare received messages to existing ones to avoid accidental duplication
 
         //send an update request
-        dataOutputStream.writeUTF("update");
-        dataOutputStream.flush();
+        proxy.dataOutputStream.writeUTF("update");
+        proxy.dataOutputStream.flush();
 
         //parse the IP addresses in the reply
-        String[] replicaListString = Pattern.compile("\\[|,|\\]").split(dataInputStream.readUTF());
+        String[] replicaListString = Pattern.compile("\\[|,|\\]").split(proxy.dataInputStream.readUTF());
 
         //create connections to all of the IP addresses
         Vector<SocketStreamContainer> replicas = new Vector<>();
@@ -121,37 +121,33 @@ public class ReplicaMain implements Runnable{
         for (SocketStreamContainer s : replicas){
             try{
                 s.dataOutputStream.writeUTF("query_tn");
-                dataOutputStream.flush();
+                s.dataOutputStream.flush();
             } catch (IOException e){
                 s.close();
                 replicas.remove(s);
             }
         }
 
+
         //wait for reply
-        timeoutFlag = false;
-        Timer timer = new Timer();
-        timer.schedule(new TimerTask() {
-            @Override
-            public void run() {
-                timeoutFlag = true;
-                timer.cancel();
-            }
-        }, 500);
-        while (!timeoutFlag){Thread.yield();}
+        TimeoutTimer timer = new TimeoutTimer();
+        timer.startTimer(500);
+        while (!timer.isTimeoutFlag()){Thread.yield();}
 
         //Find the maximum
-        //TODO handle missing replicas
         int TNold = fileHandler.read().length;
         int TNmax = -1;
         SocketStreamContainer master = null;
         for (SocketStreamContainer s : replicas){
             try{
-                String reply = s.dataInputStream.readUTF();
-                int TNcurrent = Integer.parseInt(reply.split(" ")[1]);
-                if (TNcurrent > TNmax && TNcurrent > TNold){
-                    master = s;
-                    TNmax = TNcurrent;
+                if (s.dataInputStream.available() > 0) {
+                    int TNcurrent = Integer.parseInt(s.dataInputStream.readUTF().split(" ")[1]);
+                    if (TNcurrent > TNmax && TNcurrent > TNold) {
+                        master = s;
+                        TNmax = TNcurrent;
+                    }
+                } else {
+                    throw new IOException("Replica timeout");
                 }
             } catch (IOException e){
                 s.close();
@@ -162,7 +158,7 @@ public class ReplicaMain implements Runnable{
         //request transformations from higher replica
         if (master != null){
             master.dataOutputStream.writeUTF("transformations " + TNold + " "+ TNmax);
-            dataOutputStream.flush();
+            master.dataOutputStream.flush();
             //recieve and format the response
             String[] msgs = Pattern.compile("\\[|,|\\]").split(master.dataInputStream.readUTF());
 
