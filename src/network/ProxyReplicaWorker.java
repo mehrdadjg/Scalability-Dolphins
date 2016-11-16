@@ -9,18 +9,18 @@ import java.util.Vector;
 /**
  * A Threaded worker process overloaded to handle replica connections
  */
-class ServerReplicaWorker extends ServerWorker{
-    private Vector<ServerReplicaWorker> serverReplicas;
+class ProxyReplicaWorker extends ProxyWorker {
+    private Vector<ProxyReplicaWorker> replicas;
 
     /**
      * @param socket The socket which this worker should transmit and recieve from
      * @param msgs   The blocking queue to deliver messages to
-     * @param serverReplicas a reference to the list of currently connected replicas
+     * @param replicas a reference to the list of currently connected replicas
      * @throws IOException If the the socket is unable to produce input and/or output streams
      */
-    ServerReplicaWorker(Socket socket, BlockingQueue msgs, Vector<ServerReplicaWorker> serverReplicas) throws IOException {
+    ProxyReplicaWorker(Socket socket, BlockingQueue msgs, Vector<ProxyReplicaWorker> replicas) throws IOException {
         super(socket, msgs);
-        this.serverReplicas = serverReplicas;
+        this.replicas = replicas;
     }
 
     /**
@@ -31,7 +31,7 @@ class ServerReplicaWorker extends ServerWorker{
     @Override
     void operationUpdate(String msg) throws IOException{
         String replicaList = "[";
-        for (ServerReplicaWorker s : serverReplicas){
+        for (ProxyReplicaWorker s : replicas){
             if (this != s){
                 replicaList += "," + s;
             }

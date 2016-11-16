@@ -14,15 +14,15 @@ import java.util.concurrent.Executors;
 /**
  * The main server class which accepts connections and creates worker threads
  */
-public class ServerMain implements Runnable{
+public class ProxyMain implements Runnable{
     private int clientPort;
     private int replicaPort;
     private boolean isRunning;
-    private Vector<ServerWorker> serverClients = new Vector<>();
-    private Vector<ServerReplicaWorker> serverReplicas = new Vector<>();
+    private Vector<ProxyWorker> clients = new Vector<>();
+    private Vector<ProxyReplicaWorker> replicas = new Vector<>();
     private BlockingQueue msgs = new BlockingQueue();
 
-    public ServerMain(int clientPort, int replicaPort){
+    public ProxyMain(int clientPort, int replicaPort){
         this.clientPort = clientPort;
         this.replicaPort = replicaPort;
     }
@@ -35,28 +35,28 @@ public class ServerMain implements Runnable{
         ExecutorService executorService = Executors.newCachedThreadPool();
 
         //TODO Abort if desired port is already taken
-        try(ServerSocket serverClientSocket = new ServerSocket(clientPort); ServerSocket serverReplicaSocket = new ServerSocket(replicaPort)) {
-            System.out.println("Server started. local address is: " + InetAddress.getLocalHost() + ":" + serverClientSocket.getLocalPort());
-            serverClientSocket.setSoTimeout(10); //set a socket timeout so that accept() does not block forever and lets us exit the loop without interrupting normal execution
-            serverReplicaSocket.setSoTimeout(10);
+        try(ServerSocket clientSocket = new ServerSocket(clientPort); ServerSocket replicaSocket = new ServerSocket(replicaPort)) {
+            System.out.println("Server started. local address is: " + InetAddress.getLocalHost() + ":" + clientSocket.getLocalPort());
+            clientSocket.setSoTimeout(10); //set a socket timeout so that accept() does not block forever and lets us exit the loop without interrupting normal execution
+            replicaSocket.setSoTimeout(10);
             isRunning = true;
             while (isRunning){
                 try{
-                    Socket socket = serverClientSocket.accept();
+                    Socket socket = clientSocket.accept();
                     System.out.println("Accepted new client at:" + socket.getInetAddress() + ":" + socket.getPort());
-                    ServerWorker serverWorker = new ServerWorker(socket, msgs);
-                    serverClients.addElement(serverWorker);
-                    executorService.submit(serverWorker);
+                    ProxyWorker proxyWorker = new ProxyWorker(socket, msgs);
+                    clients.addElement(proxyWorker);
+                    executorService.submit(proxyWorker);
                 } catch (SocketTimeoutException s){
                     //s.printStackTrace();              //suppress timeout exceptions when no connection requests occur
                 }
 
                 try{
-                    Socket socket = serverReplicaSocket.accept();
+                    Socket socket = replicaSocket.accept();
                     System.out.println("Accepted new replica at: " + socket.getInetAddress() + ":" + socket.getPort());
-                    ServerReplicaWorker serverReplicaWorker = new ServerReplicaWorker(socket, msgs, serverReplicas);
-                    serverReplicas.addElement(serverReplicaWorker);
-                    executorService.submit(serverReplicaWorker);
+                    ProxyReplicaWorker replicaWorker = new ProxyReplicaWorker(socket, msgs, replicas);
+                    replicas.addElement(replicaWorker);
+                    executorService.submit(replicaWorker);
                 } catch (SocketTimeoutException s){
                     //s.printStackTrace();              //suppress timeout exceptions when no connection requests occur
                 }
@@ -76,12 +76,12 @@ public class ServerMain implements Runnable{
 
     /**
      * sets the shutdown flag, allowing the run() method to eventually exit it's accept loop and clean up.
-     * also calls shutdown on all existing serverClients.
+     * also calls shutdown on all existing clients.
      */
     public void shutdown(){
         isRunning = false;
-        serverClients.forEach(ServerWorker::shutdown);
-        serverReplicas.forEach(ServerReplicaWorker::shutdown);
+        clients.forEach(ProxyWorker::shutdown);
+        replicas.forEach(ProxyReplicaWorker::shutdown);
     }
 
     /**
@@ -90,27 +90,27 @@ public class ServerMain implements Runnable{
      */
     private void broadcast(String msg){
         //TODO actively check for disconnects, rather than only when sending
-        for (ServerReplicaWorker s : serverReplicas){
+        for (ProxyReplicaWorker p : replicas){
             try{
-                s.sendUTF(msg);
-                System.out.println("sent message to >" + s);
+                p.sendUTF(msg);
+                System.out.println("sent message to >" + p);
             } catch (IOException e) {
                 //if sending has failed, socket is closed
                 System.out.println("replica disconnected");
-                s.shutdown();
-                serverReplicas.remove(s);
+                p.shutdown();
+                replicas.remove(p);
                 //e.printStackTrace();
             }
         }
-        for (ServerWorker s : serverClients){
+        for (ProxyWorker p : clients){
             try {
-                s.sendUTF(msg);
-                System.out.println("sent message to >" + s);
+                p.sendUTF(msg);
+                System.out.println("sent message to >" + p);
             } catch (IOException e) {
                 //if sending has failed, client has likely disconnected
                 System.out.println("client disconnected");
-                s.shutdown();
-                serverClients.remove(s);
+                p.shutdown();
+                clients.remove(p);
                 //e.printStackTrace();
             }
         }

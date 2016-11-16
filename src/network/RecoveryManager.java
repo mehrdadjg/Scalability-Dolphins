@@ -10,21 +10,21 @@ import java.util.Vector;
  * Helps a client or replica catch up after connecting
  */
 class RecoveryManager {
-    private Vector<ServerReplicaWorker> serverWorkers = new Vector<>(); //A list of available replicas to consult
-    String recoveryList = emptyList; //A mailbox for the list of changes needed for a recovery that is set by a ServerReplicaWorker in a different thread
+    private Vector<ProxyReplicaWorker> serverWorkers = new Vector<>(); //A list of available replicas to consult
+    String recoveryList = emptyList; //A mailbox for the list of changes needed for a recovery that is set by a ProxyReplicaWorker in a different thread
     private boolean timeoutFlag = false;
     private final static int defaultTimout = 500;
     private final static String emptyList = "[]";
     Timer timer;
 
-    RecoveryManager(Vector<ServerReplicaWorker> serverWorkers){
+    RecoveryManager(Vector<ProxyReplicaWorker> serverWorkers){
         this.serverWorkers = serverWorkers;
     }
 
-    void recover(ServerWorker recoverer, int TNold){
+    void recover(ProxyWorker recoverer, int TNold){
         boolean recoveryComplete = false;
 
-        for (ServerWorker s : serverWorkers){
+        for (ProxyWorker s : serverWorkers){
             if (!s.isConnected()){
                 s.shutdown();
                 serverWorkers.remove(s);
@@ -37,7 +37,7 @@ class RecoveryManager {
             if (serverWorkers.size() > 0 && recoverer != serverWorkers.firstElement()) {
 
                 //request all replica TNs
-                for (ServerReplicaWorker s : serverWorkers) {
+                for (ProxyReplicaWorker s : serverWorkers) {
 
                     if (s.equals(recoverer)) {
                         //Skip the recoverer when checking for current TNs
@@ -56,7 +56,7 @@ class RecoveryManager {
                 }
 
                 //pick server with highest TN
-                ServerReplicaWorker master = null;//serverWorkers.firstElement();
+                ProxyReplicaWorker master = null;//serverWorkers.firstElement();
 
 
                 startTimer();
@@ -66,7 +66,7 @@ class RecoveryManager {
                 }
 
                 int TNmax = -1;
-                for (ServerReplicaWorker s : serverWorkers) {
+                for (ProxyReplicaWorker s : serverWorkers) {
 
                     if (s.equals(recoverer)) {
                         //Skip the recoverer when checking for current TNs

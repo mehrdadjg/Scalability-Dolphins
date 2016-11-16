@@ -12,7 +12,7 @@ import static java.lang.Thread.yield;
 /**
  * A threaded worker process to handle communications to and from a single client
  */
-class ServerWorker implements Runnable{
+class ProxyWorker implements Runnable{
     private Socket socket;
     private DataInputStream dataInputStream;
     private DataOutputStream dataOutputStream;
@@ -28,7 +28,7 @@ class ServerWorker implements Runnable{
      * @param msgs The blocking queue to deliver messages to
      * @throws IOException If the the socket is unable to produce input and/or output streams
      */
-    ServerWorker(Socket socket, BlockingQueue msgs) throws IOException {
+    ProxyWorker(Socket socket, BlockingQueue msgs) throws IOException {
         this.socket = socket;
         this.msgs = msgs;
         dataOutputStream = new DataOutputStream(socket.getOutputStream());
