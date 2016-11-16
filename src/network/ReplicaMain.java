@@ -23,8 +23,8 @@ public class ReplicaMain implements Runnable{
     private boolean isRunning;
     public boolean recoveryMode = false;
     private FileHandler fileHandler = new FileHandler("file.txt");
-    private ReplicaReceiver replicaReceiver = new ReplicaReceiver(fileHandler);
-    private static int replicaPort = 4455;
+    private ReplicaReceiver replicaReceiver = new ReplicaReceiver(fileHandler, replicaPort);
+    static int replicaPort = 880;
     private boolean timeoutFlag;
 
     public ReplicaMain(String ip, int port) throws IOException {
@@ -37,6 +37,7 @@ public class ReplicaMain implements Runnable{
      */
     @Override
     public void run() {
+
         try(Socket socket = new Socket(proxyIp, proxyPort); DataInputStream dataInputStream = new DataInputStream(socket.getInputStream()); DataOutputStream dataOutputStream = new DataOutputStream((socket.getOutputStream()))) {
             System.out.println("Connected to proxy");
 

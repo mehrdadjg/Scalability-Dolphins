@@ -1,7 +1,7 @@
 package network;
 
 import handlers.FileHandler;
-import launcher.Proxy;
+import util.TimeoutTimer;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -16,13 +16,15 @@ import java.util.Arrays;
  * Created by Arnold on 2016-11-15.
  */
 public class ReplicaReceiver implements Runnable{
-    private final static int port = Proxy.replicaPort;
+    private int port;
     private boolean isRunning;
-    private int timeout = 1000;
+    private int timeout = 10000;
     private FileHandler fileHandler;
+    TimeoutTimer timer = new TimeoutTimer();
 
-    public ReplicaReceiver(FileHandler fileHandler){
+    public ReplicaReceiver(FileHandler fileHandler, int port){
         this.fileHandler = fileHandler;
+        this.port = port;
     }
 
     @Override
@@ -36,22 +38,30 @@ public class ReplicaReceiver implements Runnable{
                     DataInputStream dataInputStream = new DataInputStream(socket.getInputStream());
                     DataOutputStream dataOutputStream = new DataOutputStream(socket.getOutputStream());
 
-                    String msg = dataInputStream.readUTF();
+                    do{
+                        if (dataInputStream.available() > 0){
+                            String msg = dataInputStream.readUTF();
 
-                    switch (msg.split(" ")[0]) {
-                        case "query_tn" :
-                            //reply with the current TN
-                            dataOutputStream.writeUTF("tn " + (fileHandler.read().length));
-                            break;
-                        case "transformations" :
-                            //prepare yourself
-                            dataOutputStream.writeUTF(Arrays.toString(Arrays.copyOfRange(fileHandler.read(), Integer.parseInt(msg.split(" ")[1]), Integer.parseInt(msg.split(" ")[2]))));
-                            break;
-                        default:
-                            //Discard messages that are not recognized as part of the protocol
-                            dataOutputStream.writeUTF("error:incorrect format");
-                            break;
-                    }
+                            switch (msg.split(" ")[0]) {
+                                case "query_tn" :
+                                    //reply with the current TN
+                                    dataOutputStream.writeUTF("tn " + (fileHandler.read().length));
+                                    break;
+                                case "transformations" :
+                                    //prepare yourself
+                                    dataOutputStream.writeUTF(Arrays.toString(Arrays.copyOfRange(fileHandler.read(), Integer.parseInt(msg.split(" ")[1]), Integer.parseInt(msg.split(" ")[2]))));
+                                    break;
+                                default:
+                                    //Discard messages that are not recognized as part of the protocol
+                                    dataOutputStream.writeUTF("error:incorrect format");
+                                    break;
+                            }
+                            timer.cancel();
+                            timer.startTimer(timeout);
+                        }
+                    } while (!timer.isTimeoutFlag());
+
+                    System.out.println("recoverer timed out");
 
                 } catch (SocketTimeoutException s){
                     //s.printStackTrace();
@@ -59,6 +69,7 @@ public class ReplicaReceiver implements Runnable{
             }
 
         } catch (IOException e) {
+            System.out.println("Failed to open serverSocket: " + port);
             e.printStackTrace();
         }
     }
