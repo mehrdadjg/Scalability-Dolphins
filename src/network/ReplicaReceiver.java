@@ -34,10 +34,12 @@ public class ReplicaReceiver implements Runnable{
             isRunning = true;
 
             while (isRunning){
+                //TODO create replica worker to allow multiple recoveries at the same time
                 try(Socket socket = serverSocket.accept();){
                     DataInputStream dataInputStream = new DataInputStream(socket.getInputStream());
                     DataOutputStream dataOutputStream = new DataOutputStream(socket.getOutputStream());
 
+                    timer.reset();
                     do{
                         if (dataInputStream.available() > 0){
                             String msg = dataInputStream.readUTF();
@@ -56,7 +58,6 @@ public class ReplicaReceiver implements Runnable{
                                     dataOutputStream.writeUTF("error:incorrect format");
                                     break;
                             }
-                            timer.cancel();
                             timer.startTimer(timeout);
                         }
                     } while (!timer.isTimeoutFlag());

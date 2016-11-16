@@ -11,7 +11,7 @@ public class TimeoutTimer {
     private Timer timer;
 
     public void startTimer(int timeout){
-        timeoutFlag = false;
+        reset();
         timer = new Timer();
         timer.schedule(new TimerTask() {
             @Override
@@ -26,9 +26,15 @@ public class TimeoutTimer {
         return timeoutFlag;
     }
 
+    public void reset(){
+        cancel();
+        timeoutFlag = false;
+    }
+
     public void cancel(){
         if (timer != null){
             timer.cancel();
+            timer.purge();
         }
     }
 }

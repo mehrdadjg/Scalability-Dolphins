@@ -1,6 +1,8 @@
 package network;
 
 
+import util.TimeoutTimer;
+
 import java.io.IOException;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -12,10 +14,9 @@ import java.util.Vector;
 class RecoveryManager {
     private Vector<ProxyReplicaWorker> serverWorkers = new Vector<>(); //A list of available replicas to consult
     String recoveryList = emptyList; //A mailbox for the list of changes needed for a recovery that is set by a ProxyReplicaWorker in a different thread
-    private boolean timeoutFlag = false;
     private final static int defaultTimout = 500;
     private final static String emptyList = "[]";
-    Timer timer;
+    TimeoutTimer timer;
 
     RecoveryManager(Vector<ProxyReplicaWorker> serverWorkers){
         this.serverWorkers = serverWorkers;
@@ -59,11 +60,8 @@ class RecoveryManager {
                 ProxyReplicaWorker master = null;//serverWorkers.firstElement();
 
 
-                startTimer();
-
-                while (!timeoutFlag) {
-                    Thread.yield();
-                }
+                timer.startTimer(defaultTimout);
+                while (!timer.isTimeoutFlag()) {Thread.yield();}
 
                 int TNmax = -1;
                 for (ProxyReplicaWorker s : serverWorkers) {
@@ -95,8 +93,8 @@ class RecoveryManager {
                 }
 
                 //wait for a reply
-                startTimer();
-                while (!timeoutFlag && (recoveryList.equals(emptyList))) {
+                timer.startTimer(defaultTimout);
+                while (!timer.isTimeoutFlag() && (recoveryList.equals(emptyList))) {
                     Thread.yield();
                 }
             }
@@ -122,17 +120,5 @@ class RecoveryManager {
         //reset and prepare for the next request
         recoveryList = emptyList;
 
-    }
-
-    private void startTimer(){
-        timeoutFlag = false;
-        timer = new Timer();
-        timer.schedule(new TimerTask() {
-            @Override
-            public void run() {
-                timeoutFlag = true;
-                timer.cancel();
-            }
-        }, defaultTimout);
     }
 }
