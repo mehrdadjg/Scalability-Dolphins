@@ -18,8 +18,8 @@ class ProxyReplicaWorker extends ProxyWorker {
      * @param replicas a reference to the list of currently connected replicas
      * @throws IOException If the the socket is unable to produce input and/or output streams
      */
-    ProxyReplicaWorker(Socket socket, BlockingQueue msgs, Vector<ProxyReplicaWorker> replicas) throws IOException {
-        super(socket, msgs);
+    ProxyReplicaWorker(Socket socket, BlockingQueue msgs, RecoveryManager recoveryManager, Vector<ProxyReplicaWorker> replicas) throws IOException {
+        super(socket, msgs, recoveryManager);
         this.replicas = replicas;
     }
 

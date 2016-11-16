@@ -21,6 +21,7 @@ class ProxyWorker implements Runnable{
     boolean isRecovering = false;
     int knownTN;
     boolean TNupdated = false;
+    private RecoveryManager recoveryManager;
 
     /**
      *
@@ -28,9 +29,10 @@ class ProxyWorker implements Runnable{
      * @param msgs The blocking queue to deliver messages to
      * @throws IOException If the the socket is unable to produce input and/or output streams
      */
-    ProxyWorker(Socket socket, BlockingQueue msgs) throws IOException {
+    ProxyWorker(Socket socket, BlockingQueue msgs, RecoveryManager recoveryManager) throws IOException {
         this.socket = socket;
         this.msgs = msgs;
+        this.recoveryManager = recoveryManager;
         dataOutputStream = new DataOutputStream(socket.getOutputStream());
         dataInputStream = new DataInputStream(socket.getInputStream());
     }
@@ -89,9 +91,7 @@ class ProxyWorker implements Runnable{
      * @throws IOException if sending process fails. Likely due to the client disconnecting.
      */
     void operationUpdate(String msg) throws IOException {
-        //TODO retrieve updates and send them to client
-        System.out.println("N/I Code 101");
-        sendUTF("[]");
+        recoveryManager.recover(this, Integer.parseInt(msg.split(" ")[1]));
     }
 
     private void operationDeliver(String msg){
@@ -138,9 +138,5 @@ class ProxyWorker implements Runnable{
     @Override
     public String toString() {
         return (socket.getRemoteSocketAddress().toString().replaceFirst("/",""));
-    }
-
-    void resumeAfterRecovery(){
-        isRecovering = false;
     }
 }

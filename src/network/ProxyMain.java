@@ -21,6 +21,7 @@ public class ProxyMain implements Runnable{
     private Vector<ProxyWorker> clients = new Vector<>();
     private Vector<ProxyReplicaWorker> replicas = new Vector<>();
     private BlockingQueue msgs = new BlockingQueue();
+    private RecoveryManager recoveryManager = new RecoveryManager(replicas);
 
     public ProxyMain(int clientPort, int replicaPort){
         this.clientPort = clientPort;
@@ -44,7 +45,7 @@ public class ProxyMain implements Runnable{
                 try{
                     Socket socket = clientSocket.accept();
                     System.out.println("Accepted new client at:" + socket.getInetAddress() + ":" + socket.getPort());
-                    ProxyWorker proxyWorker = new ProxyWorker(socket, msgs);
+                    ProxyWorker proxyWorker = new ProxyWorker(socket, msgs, recoveryManager);
                     clients.addElement(proxyWorker);
                     executorService.submit(proxyWorker);
                 } catch (SocketTimeoutException s){
@@ -54,7 +55,7 @@ public class ProxyMain implements Runnable{
                 try{
                     Socket socket = replicaSocket.accept();
                     System.out.println("Accepted new replica at: " + socket.getInetAddress() + ":" + socket.getPort());
-                    ProxyReplicaWorker replicaWorker = new ProxyReplicaWorker(socket, msgs, replicas);
+                    ProxyReplicaWorker replicaWorker = new ProxyReplicaWorker(socket, msgs,recoveryManager, replicas);
                     replicas.addElement(replicaWorker);
                     executorService.submit(replicaWorker);
                 } catch (SocketTimeoutException s){
