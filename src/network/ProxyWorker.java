@@ -12,16 +12,16 @@ import static java.lang.Thread.yield;
 /**
  * A threaded worker process to handle communications to and from a single client
  */
-class ServerWorker implements Runnable{
+class ProxyWorker implements Runnable{
     private Socket socket;
     private DataInputStream dataInputStream;
     private DataOutputStream dataOutputStream;
     private boolean isRunning;
     private BlockingQueue msgs;
-    private RecoveryManager recoveryManager;
     boolean isRecovering = false;
     int knownTN;
     boolean TNupdated = false;
+    private RecoveryManager recoveryManager;
 
     /**
      *
@@ -29,12 +29,12 @@ class ServerWorker implements Runnable{
      * @param msgs The blocking queue to deliver messages to
      * @throws IOException If the the socket is unable to produce input and/or output streams
      */
-    ServerWorker(Socket socket, BlockingQueue msgs, RecoveryManager recoveryManager) throws IOException {
+    ProxyWorker(Socket socket, BlockingQueue msgs, RecoveryManager recoveryManager) throws IOException {
         this.socket = socket;
         this.msgs = msgs;
+        this.recoveryManager = recoveryManager;
         dataOutputStream = new DataOutputStream(socket.getOutputStream());
         dataInputStream = new DataInputStream(socket.getInputStream());
-        this.recoveryManager = recoveryManager;
     }
 
     @Override
@@ -44,7 +44,6 @@ class ServerWorker implements Runnable{
 
             isRunning = true;
             while (isRunning){
-                //if (isRecovering){continue;}
 
                 //readUTF() blocks until success, so we must check before calling it to avoid waiting if a packet isnt ready
                 if (dataInputStream.available() > 0){
@@ -56,27 +55,20 @@ class ServerWorker implements Runnable{
                     switch (msg.split(" ")[0]){
                         case "add"  : case "delete" :
                             //add the received message to the queue for the server to broadcast later
-                            deliver(msg);
+                            operationDeliver(msg);
                             break;
                         case "update" :
-                            //TODO start queuing messages while retrieving missed ones
-                            //isRecovering = true;
-                            recoveryManager.recover(this, Integer.parseInt(msg.split(" ")[1]));
+                            operationUpdate(msg);
                             break;
                         case "tn" :
                             knownTN = Integer.parseInt(msg.split(" ")[1]);
                             TNupdated = true;
                             break;
                         default:
-                            if (msg.startsWith("[")){
-                                recoveryManager.recoveryList = msg;
-                            }
-                            else {
-                                //Discard messages that are not recognized as part of the protocol
-                                //TODO reply with <Error> according to protocol
-                                System.out.println("Unknown message type recieved. Discarding > " + msg);
-                                break;
-                            }
+                            //Discard messages that are not recognized as part of the protocol
+                            sendUTF("error:incorrect format");
+                            break;
+
                     }
                 }
                 yield();
@@ -92,7 +84,17 @@ class ServerWorker implements Runnable{
         }
     }
 
-    private void deliver(String msg){
+
+    /**
+     * Retrieves updates with a TN of <TN> or higher from any available replica and sends them to the client
+     * @param msg a string of the format "Update <TN>"
+     * @throws IOException if sending process fails. Likely due to the client disconnecting.
+     */
+    void operationUpdate(String msg) throws IOException {
+        recoveryManager.recover(this, Integer.parseInt(msg.split(" ")[1]));
+    }
+
+    private void operationDeliver(String msg){
         msgs.add(msg);
     }
 
@@ -109,8 +111,11 @@ class ServerWorker implements Runnable{
      * @throws IOException if the dataOutputStream fails to send
      */
     void sendUTF(String msg)throws IOException{
+        System.out.println("Sending to >" + toString());
+        System.out.println("\t Message > " + msg);
         dataOutputStream.writeUTF(msg);
         dataOutputStream.flush();
+        System.out.println("\t sent");
     }
 
     /**
@@ -130,7 +135,8 @@ class ServerWorker implements Runnable{
         return true;
     }
 
-    void resumeAfterRecovery(){
-        isRecovering = false;
+    @Override
+    public String toString() {
+        return (socket.getRemoteSocketAddress().toString().replaceFirst("/",""));
     }
 }
