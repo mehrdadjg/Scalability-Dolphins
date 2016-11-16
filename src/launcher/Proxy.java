@@ -1,6 +1,6 @@
 package launcher;
 
-import network.ServerMain;
+import network.ProxyMain;
 
 import java.util.Scanner;
 
@@ -11,7 +11,7 @@ import java.util.Scanner;
  */
 public class Proxy{
     private static int clientPort = 22;
-    private static int replicaPort = 21;
+    public static int replicaPort = 21;
 
     public static void main(String[] args){
         if (args.length > 0){
@@ -21,8 +21,8 @@ public class Proxy{
             }
         }
 
-        ServerMain serverMain = new ServerMain(clientPort, replicaPort);
-        new Thread(serverMain).start();
+        ProxyMain proxyMain = new ProxyMain(clientPort, replicaPort);
+        new Thread(proxyMain).start();
 
         //Await Quit command to shutdown
         Scanner scanner = new Scanner(System.in);
@@ -31,7 +31,7 @@ public class Proxy{
             userInput = scanner.nextLine();
         } while (userInput.compareTo("Quit") != 0);
 
-        serverMain.shutdown();
+        proxyMain.shutdown();
         scanner.close();
     }
 }
