@@ -23,6 +23,8 @@ public class ReplicaMain implements Runnable{
     private FileHandler fileHandler = new FileHandler("file.txt");
     private ReplicaReceiver replicaReceiver = new ReplicaReceiver(fileHandler, replicaPort);
     static int replicaPort = 880;
+    private int pingInterval = 1500;
+    private TimeoutTimer timeoutTimer = new TimeoutTimer();
 
     public ReplicaMain(String ip, int port) throws IOException {
         this.proxyIp = ip;
@@ -46,6 +48,7 @@ public class ReplicaMain implements Runnable{
             //Launch the receiver thread which will service incoming update requests
             new Thread(replicaReceiver).start();
 
+            timeoutTimer.startTimer(pingInterval);
             isRunning = true;
             while (isRunning) {
                 //readUTF() blocks until success, so we must check before calling it to avoid waiting if a packet isnt ready
@@ -62,32 +65,41 @@ public class ReplicaMain implements Runnable{
                             break;
                         case "query_tn" :
                             //reply with the current TN
-                            socketStreamContainer.dataOutputStream.writeUTF("tn " + (fileHandler.read().length));
-                            socketStreamContainer.dataOutputStream.flush();
+                            sendUTF("tn " + (fileHandler.read().length), socketStreamContainer);
                             break;
                         case "transformations" :
                             //prepare yourself
-                            socketStreamContainer.dataOutputStream.writeUTF(Arrays.toString(Arrays.copyOfRange(fileHandler.read(), Integer.parseInt(msg.split(" ")[1]), Integer.parseInt(msg.split(" ")[2]))));
-                            socketStreamContainer.dataOutputStream.flush();
+                            sendUTF(Arrays.toString(Arrays.copyOfRange(fileHandler.read(), Integer.parseInt(msg.split(" ")[1]), Integer.parseInt(msg.split(" ")[2]))), socketStreamContainer);
                             break;
                         default:
                             //Discard messages that are not recognized as part of the protocol
-                            socketStreamContainer.dataOutputStream.writeUTF("error:incorrect format");
-                            socketStreamContainer.dataOutputStream.flush();
+                            sendUTF("error:incorrect format", socketStreamContainer);
                             break;
                     }
+                }
+                if (timeoutTimer.isTimeoutFlag()){
+                    System.out.println("pinging");
+                    sendUTF("ping", socketStreamContainer);
                 }
             }
         } catch (UnknownHostException e) {
             //Possible ip is not online, or ip is not valid
             e.printStackTrace();
         } catch (IOException e) {
-            e.printStackTrace();
+            //Proxy is offline.
+            //TODO attempt reconnect
+            shutdown();
+            //e.printStackTrace();
         }
         
         fileHandler.close();
     }
 
+    private void sendUTF(String msg, SocketStreamContainer socketStreamContainer) throws IOException{
+        timeoutTimer.startTimer(pingInterval);
+        socketStreamContainer.dataOutputStream.writeUTF(msg);
+        socketStreamContainer.dataOutputStream.flush();
+    }
 
     /**
      * Requests and downloads missed messages and saves them to file
