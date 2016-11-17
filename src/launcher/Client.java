@@ -2,6 +2,8 @@ package launcher;
 
 import util.DocumentUpdate;
 import util.DocumentUpdate.PositionType;
+import util.Logger.ProcessType;
+import util.Logger;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -46,6 +48,7 @@ public class Client{
     public static final String		id					= Client.getSelfMAC() + new Random().nextInt();
     
     public static void main(String[] args){
+    	Logger.initialize(ProcessType.Client);
     	System.out.println("The default proxy server address is " + host + ":" + String.valueOf(port));
     	System.out.println("If this is incorrect give the actual address using the same format," + 
     			" otherwise type anything.");

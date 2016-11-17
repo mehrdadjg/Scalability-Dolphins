@@ -7,6 +7,8 @@ import java.util.ArrayList;
 import launcher.Client;
 import transformations.OperationalTransformation;
 import util.DocumentUpdate;
+import util.Logger;
+import util.Logger.LogType;
 
 public class ClientReceiver implements Runnable {
 	
@@ -48,6 +50,12 @@ public class ClientReceiver implements Runnable {
 			}
 			
 			DocumentUpdate incomingUpdate = DocumentUpdate.fromString(input);
+			
+			if(incomingUpdate == null) {
+				Logger.log("Incorrect protocol detected in the incoming stream. Packet dropped.", LogType.Error);
+				Logger.log("Incorrect input: " + input, LogType.Info);
+				continue;
+			}
 			
 			OperationalTransformation.update(approvedUpdates, unapprovedUpdates, incomingUpdate);
 			
