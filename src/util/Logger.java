@@ -152,8 +152,13 @@ public class Logger {
 		writer.println( index++ + "::" +
 						Calendar.getInstance().getTimeInMillis() + "::" +
 						type.toString() + "::" +
-						msg);
+						msg.trim());
 		writer.flush();
+		
+		if(type == LogType.Error)
+			System.err.println(index + "(" + type.toString().charAt(0) + "). " + msg);
+		else
+			System.out.println(index + "(" + type.toString().charAt(0) + "). " + msg);
 	}
 	
 	@Override
