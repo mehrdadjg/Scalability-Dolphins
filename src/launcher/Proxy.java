@@ -11,7 +11,7 @@ import java.util.Scanner;
  */
 public class Proxy{
     private static int clientPort = 22;
-    public static int replicaPort = 21;
+    private static int replicaPort = 21;
 
     public static void main(String[] args){
         if (args.length > 0){

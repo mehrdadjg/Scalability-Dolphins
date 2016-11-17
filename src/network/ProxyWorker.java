@@ -22,6 +22,7 @@ class ProxyWorker implements Runnable{
     int knownTN;
     boolean TNupdated = false;
     private RecoveryManager recoveryManager;
+    private volatile boolean offline = false;
 
     /**
      *
@@ -52,23 +53,29 @@ class ProxyWorker implements Runnable{
                     //TODO replace print statements with logging framework
                     System.out.println("Incoming Message from " + socket.getInetAddress() + ":" + socket.getPort() + " > " +  msg);
 
-                    switch (msg.split(" ")[0]){
-                        case "add"  : case "delete" :
-                            //add the received message to the queue for the server to broadcast later
-                            operationDeliver(msg);
-                            break;
-                        case "update" :
-                            operationUpdate(msg);
-                            break;
-                        case "tn" :
-                            knownTN = Integer.parseInt(msg.split(" ")[1]);
-                            TNupdated = true;
-                            break;
-                        default:
-                            //Discard messages that are not recognized as part of the protocol
-                            sendUTF("error:incorrect format");
-                            break;
+                    if (offline){
+                        //System offline
+                        sendUTF("error: system offline");
+                    } else
+                    {
+                        switch (msg.split(" ")[0]){
+                            case "add"  : case "delete" :
+                                //add the received message to the queue for the server to broadcast later
+                                operationDeliver(msg);
+                                break;
+                            case "update" :
+                                operationUpdate(msg);
+                                break;
+                            case "tn" :
+                                knownTN = Integer.parseInt(msg.split(" ")[1]);
+                                TNupdated = true;
+                                break;
+                            default:
+                                //Discard messages that are not recognized as part of the protocol
+                                sendUTF("error:incorrect format");
+                                break;
 
+                        }
                     }
                 }
                 yield();
@@ -138,5 +145,9 @@ class ProxyWorker implements Runnable{
     @Override
     public String toString() {
         return (socket.getRemoteSocketAddress().toString().replaceFirst("/",""));
+    }
+
+    void setOffline(boolean val){
+        offline = val;
     }
 }

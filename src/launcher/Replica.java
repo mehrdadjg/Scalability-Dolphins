@@ -18,6 +18,9 @@ public class Replica {
         //TODO check valid ip format with regex "\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}"
         if (args.length > 0){
             ip = args[0];
+			if (args.length > 1){
+				port = Integer.parseInt(args[1]);
+			}
         }
 
         ReplicaMain replicaMain;
