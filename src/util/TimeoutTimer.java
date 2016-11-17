@@ -38,6 +38,7 @@ public class TimeoutTimer {
      * Trigger for timeout flag to manually set it off
      */
     public void setTimeoutFlag(){
+        cancel();
         timeoutFlag = true;
     }
 
