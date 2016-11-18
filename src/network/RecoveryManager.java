@@ -1,6 +1,7 @@
 package network;
 
 
+import util.Resources;
 import util.SocketStreamContainer;
 import util.TimeoutTimer;
 
@@ -17,7 +18,7 @@ class RecoveryManager {
     private final static int defaultTimeout = 500;
     private final static String emptyList = "[]";
     private TimeoutTimer timer = new TimeoutTimer();
-    private int recoveryPort = 880;
+    private int recoveryPort = Resources.RECOVERYPORT;
 
     RecoveryManager(Vector<ProxyReplicaWorker> replicas){
         this.replicas = replicas;
