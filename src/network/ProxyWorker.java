@@ -1,6 +1,8 @@
 package network;
 
 import util.BlockingQueue;
+import util.SocketStreamContainer;
+import util.TimeoutTimer;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -18,10 +20,10 @@ class ProxyWorker implements Runnable{
     private DataOutputStream dataOutputStream;
     private boolean isRunning;
     private BlockingQueue msgs;
-    boolean isRecovering = false;
-    int knownTN;
-    boolean TNupdated = false;
     private RecoveryManager recoveryManager;
+    private volatile boolean offline = false;
+    TimeoutTimer timeoutTimer = new TimeoutTimer();
+    int timeout = 3000;
 
     /**
      *
@@ -44,36 +46,45 @@ class ProxyWorker implements Runnable{
 
             isRunning = true;
             while (isRunning){
-
                 //readUTF() blocks until success, so we must check before calling it to avoid waiting if a packet isnt ready
                 if (dataInputStream.available() > 0){
+                    timeoutTimer.startTimer(timeout);
                     String msg = dataInputStream.readUTF();
 
                     //TODO replace print statements with logging framework
-                    System.out.println("Incoming Message from " + socket.getInetAddress() + ":" + socket.getPort() + " > " +  msg);
-
-                    switch (msg.split(" ")[0]){
-                        case "add"  : case "delete" :
-                            //add the received message to the queue for the server to broadcast later
-                            operationDeliver(msg);
-                            break;
-                        case "update" :
-                            operationUpdate(msg);
-                            break;
-                        case "tn" :
-                            knownTN = Integer.parseInt(msg.split(" ")[1]);
-                            TNupdated = true;
-                            break;
-                        default:
-                            //Discard messages that are not recognized as part of the protocol
-                            sendUTF("error:incorrect format");
-                            break;
-
+                    if (!msg.startsWith("ping")){
+                        System.out.println("Incoming Message from " + socket.getInetAddress() + ":" + socket.getPort() + " > " +  msg);
                     }
+
+                    if (offline){
+                        //System offline
+                        sendUTF("error: system offline");
+                    } else
+                    {
+                        switch (msg.split(" ")[0]){
+                            case "add"  : case "delete" :
+                                //add the received message to the queue for the server to broadcast later
+                                operationDeliver(msg);
+                                break;
+                            case "update" :
+                                operationUpdate(msg);
+                                break;
+                            case "ping" :
+                                break;
+                            default:
+                                //Discard messages that are not recognized as part of the protocol
+                                sendUTF("error:incorrect format");
+                                break;
+                        }
+                    }
+                }
+                if (timeoutTimer.isTimeoutFlag()){
+                    //TODO Enable this block to disconnect timed out clients
+                    //shutdown();
+                    //System.out.println("Client timed out");
                 }
                 yield();
             }
-
 
             //release the resources before the thread terminates
             dataInputStream.close();
@@ -102,6 +113,7 @@ class ProxyWorker implements Runnable{
      * clears the isRunning flag which allows the thread to terminate it's loop and clean up
      */
     void shutdown(){
+        timeoutTimer.setTimeoutFlag();
         isRunning = false;
     }
 
@@ -118,25 +130,12 @@ class ProxyWorker implements Runnable{
         System.out.println("\t sent");
     }
 
-    /**
-     * check if the client has disconnected and sent an EOF
-     * @return true if the client is still connected
-     */
-    boolean isConnected(){
-        try {
-            if (dataInputStream.available() == 1){
-                return false;
-            }
-        } catch (IOException e) {
-            //e.printStackTrace();
-            return false;
-        }
-
-        return true;
-    }
-
     @Override
     public String toString() {
         return (socket.getRemoteSocketAddress().toString().replaceFirst("/",""));
+    }
+
+    void setOffline(boolean val){
+        offline = val;
     }
 }

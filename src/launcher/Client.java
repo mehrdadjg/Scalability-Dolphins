@@ -18,6 +18,7 @@ import java.util.regex.Pattern;
 
 import network.ClientReceiver;
 import network.ClientSender;
+import util.Resources;
 
 /**
  * Launcher for a client application.
@@ -32,7 +33,7 @@ public class Client{
     private static DataOutputStream	dataOutputStream	= null;
     
     private static String 			host				= "127.0.0.1";
-    private static int    			port 				= 22;			// TODO Link this to Server#port
+    private static int    			port 				= Resources.CLIENTPORT;
     
     private static String			message 			= "";
     
@@ -109,7 +110,9 @@ public class Client{
     	dataOutputStream.writeUTF("update 0");
 
         //recieve and format the response
-		String[] msgs = Pattern.compile("\\[|,|\\]").split(dataInputStream.readUTF());
+		String reply = dataInputStream.readUTF();
+        reply =  reply.replaceFirst("bundle ", "");
+		String[] msgs = Pattern.compile("\\[|,|\\]").split(reply);
 		int count = msgs.length;
 		
 		System.out.println(Arrays.toString(msgs));
