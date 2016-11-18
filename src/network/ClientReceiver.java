@@ -36,7 +36,7 @@ public class ClientReceiver implements Runnable {
 				if(Client.debugging) {
 					System.out.print("input: " + input);
 				}
-				if(input.startsWith("[")) {
+				if(input.startsWith("bundle")) {
 					Client.performIncomingUpdates(input);
 					continue;
 				}
@@ -54,6 +54,7 @@ public class ClientReceiver implements Runnable {
 			if(incomingUpdate == null) {
 				Logger.log("Incorrect protocol detected in the incoming stream. Packet dropped.", LogType.Error);
 				Logger.log("Incorrect input: " + input, LogType.Info);
+				Client.informProxy("error");
 				continue;
 			}
 			

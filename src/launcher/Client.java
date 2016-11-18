@@ -2,6 +2,7 @@ package launcher;
 
 import util.DocumentUpdate;
 import util.DocumentUpdate.PositionType;
+import util.Logger.LogType;
 import util.Logger.ProcessType;
 import util.Logger;
 
@@ -230,4 +231,19 @@ public class Client{
     public static void removeUnapprovedUpdate(DocumentUpdate update) {
     	unapprovedUpdates.remove(update);
     }
+    
+    /**
+     * Sends a string to the proxy. This message is not crucial to the functionality
+     * of the process.
+     * @param msg The message to be sent to the proxy.
+     */
+	public static void informProxy(String msg) {
+		try {
+			dataOutputStream.writeUTF(msg);
+			Logger.log("Message sent to proxy: " + msg, LogType.Info);
+		} catch (IOException e) {
+			Logger.log("Failed sending a message to the proxy.", LogType.Warning);
+			Logger.log("The failed message: " + msg, LogType.Info);
+		}
+	}
 }
