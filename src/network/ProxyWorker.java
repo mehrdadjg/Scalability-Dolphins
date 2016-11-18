@@ -52,7 +52,9 @@ class ProxyWorker implements Runnable{
                     String msg = dataInputStream.readUTF();
 
                     //TODO replace print statements with logging framework
-                    System.out.println("Incoming Message from " + socket.getInetAddress() + ":" + socket.getPort() + " > " +  msg);
+                    if (!msg.startsWith("ping")){
+                        System.out.println("Incoming Message from " + socket.getInetAddress() + ":" + socket.getPort() + " > " +  msg);
+                    }
 
                     if (offline){
                         //System offline

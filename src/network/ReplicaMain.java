@@ -19,10 +19,9 @@ import util.TimeoutTimer;
 public class ReplicaMain implements Runnable{
     private String proxyIp;
     private int proxyPort;
-    static int replicaPort = Resources.RECOVERYPORT;
     private boolean isRunning;
     private FileHandler fileHandler = new FileHandler("file.txt");
-    private ReplicaReceiver replicaReceiver = new ReplicaReceiver(fileHandler, replicaPort);
+    private ReplicaReceiver replicaReceiver = new ReplicaReceiver(fileHandler, Resources.RECOVERYPORT);
     private int pingInterval = 1500;
     private TimeoutTimer timeoutTimer = new TimeoutTimer();
 
@@ -36,61 +35,62 @@ public class ReplicaMain implements Runnable{
      */
     @Override
     public void run() {
+        //Launch the receiver thread which will service incoming update requests
+        new Thread(replicaReceiver).start();
+        while (true) {
 
-        try(SocketStreamContainer socketStreamContainer = new SocketStreamContainer(new Socket(proxyIp, proxyPort))) {
-            System.out.println("Connected to proxy");
+            try (SocketStreamContainer socketStreamContainer = new SocketStreamContainer(new Socket(proxyIp, proxyPort))) {
+                System.out.println("Connected to proxy");
 
-            //retrieve file contents
-            requestUpdates(socketStreamContainer);
+                //retrieve file contents
+                requestUpdates(socketStreamContainer);
 
+                timeoutTimer.startTimer(pingInterval);
+                isRunning = true;
+                while (isRunning) {
+                    //readUTF() blocks until success, so we must check before calling it to avoid waiting if a packet isnt ready
+                    if (socketStreamContainer.dataInputStream.available() > 0) {
+                        String msg = socketStreamContainer.dataInputStream.readUTF();
 
-            //Launch the receiver thread which will service incoming update requests
-            new Thread(replicaReceiver).start();
+                        //TODO replace print statements with logging framework
+                        System.out.println("Incoming Message from proxy > " + msg);
 
-            timeoutTimer.startTimer(pingInterval);
-            isRunning = true;
-            while (isRunning) {
-                //readUTF() blocks until success, so we must check before calling it to avoid waiting if a packet isnt ready
-                if (socketStreamContainer.dataInputStream.available() > 0) {
-                    String msg = socketStreamContainer.dataInputStream.readUTF();
-
-                    //TODO replace print statements with logging framework
-                    System.out.println("Incoming Message from proxy > " + msg);
-
-                    switch (msg.split(" ")[0]){
-                        case "add"  : case "delete" :
-                            //Write the incoming update to file
-                            fileHandler.append(msg);
-                            break;
-                        case "query_tn" :
-                            //reply with the current TN
-                            sendUTF("tn " + (fileHandler.read().length), socketStreamContainer);
-                            break;
-                        case "transformations" :
-                            //prepare yourself
-                            sendUTF(Arrays.toString(Arrays.copyOfRange(fileHandler.read(), Integer.parseInt(msg.split(" ")[1]), Integer.parseInt(msg.split(" ")[2]))), socketStreamContainer);
-                            break;
-                        default:
-                            //Discard messages that are not recognized as part of the protocol
-                            sendUTF("error:incorrect format", socketStreamContainer);
-                            break;
+                        switch (msg.split(" ")[0]) {
+                            case "add":
+                            case "delete":
+                                //Write the incoming update to file
+                                fileHandler.append(msg);
+                                break;
+                            case "query_tn":
+                                //reply with the current TN
+                                sendUTF("tn " + (fileHandler.read().length), socketStreamContainer);
+                                break;
+                            case "transformations":
+                                //prepare yourself
+                                sendUTF(Arrays.toString(Arrays.copyOfRange(fileHandler.read(), Integer.parseInt(msg.split(" ")[1]), Integer.parseInt(msg.split(" ")[2]))), socketStreamContainer);
+                                break;
+                            default:
+                                //Discard messages that are not recognized as part of the protocol
+                                sendUTF("error:incorrect format", socketStreamContainer);
+                                break;
+                        }
+                    }
+                    if (timeoutTimer.isTimeoutFlag()) {
+                        sendUTF("ping", socketStreamContainer);
                     }
                 }
-                if (timeoutTimer.isTimeoutFlag()){
-                    System.out.println("pinging");
-                    sendUTF("ping", socketStreamContainer);
-                }
+                break;
+            } catch (UnknownHostException e) {
+                //Possible ip is not online, or ip is not valid
+                e.printStackTrace();
+            } catch (IOException e) {
+                //Proxy is offline.
+                //TODO attempt reconnect
+                System.out.println("Disconnected from proxy. attempting reconnect");
+                shutdown();
+                //e.printStackTrace();
             }
-        } catch (UnknownHostException e) {
-            //Possible ip is not online, or ip is not valid
-            e.printStackTrace();
-        } catch (IOException e) {
-            //Proxy is offline.
-            //TODO attempt reconnect
-            shutdown();
-            //e.printStackTrace();
         }
-        
         fileHandler.close();
     }
 
@@ -119,7 +119,7 @@ public class ReplicaMain implements Runnable{
         Vector<SocketStreamContainer> replicas = new Vector<>();
         for (String s : replicaListString){
             try {
-                replicas.add(new SocketStreamContainer(new Socket(s.split(":")[0],replicaPort)));
+                replicas.add(new SocketStreamContainer(new Socket(s.split(":")[0],Resources.RECOVERYPORT)));
             } catch (IOException e){
                 //e.printStackTrace();
             }
