@@ -1,6 +1,7 @@
 package launcher;
 
 import network.ProxyMain;
+import util.Resources;
 
 import java.io.IOException;
 import java.util.Scanner;
@@ -12,8 +13,8 @@ import static java.lang.Thread.yield;
  * This should remain as simple as possible to minimize the chances of failure
  */
 public class Proxy{
-    private static int clientPort = 22;
-    private static int replicaPort = 21;
+    private static int clientPort = Resources.CLIENTPORT;
+    private static int replicaPort = Resources.REPLICAPORT;
 
     public static void main(String[] args){
         if (args.length > 0){

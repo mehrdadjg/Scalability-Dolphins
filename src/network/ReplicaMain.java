@@ -9,6 +9,7 @@ import java.util.Vector;
 import java.util.regex.Pattern;
 
 import handlers.FileHandler;
+import util.Resources;
 import util.SocketStreamContainer;
 import util.TimeoutTimer;
 
@@ -18,11 +19,10 @@ import util.TimeoutTimer;
 public class ReplicaMain implements Runnable{
     private String proxyIp;
     private int proxyPort;
+    static int replicaPort = Resources.RECOVERYPORT;
     private boolean isRunning;
-    public boolean recoveryMode = false;
     private FileHandler fileHandler = new FileHandler("file.txt");
     private ReplicaReceiver replicaReceiver = new ReplicaReceiver(fileHandler, replicaPort);
-    static int replicaPort = 880;
     private int pingInterval = 1500;
     private TimeoutTimer timeoutTimer = new TimeoutTimer();
 
@@ -41,9 +41,8 @@ public class ReplicaMain implements Runnable{
             System.out.println("Connected to proxy");
 
             //retrieve file contents
-            if (recoveryMode){
-                requestUpdates(socketStreamContainer);
-            }
+            requestUpdates(socketStreamContainer);
+
 
             //Launch the receiver thread which will service incoming update requests
             new Thread(replicaReceiver).start();
