@@ -110,7 +110,9 @@ public class Client{
     	dataOutputStream.writeUTF("update 0");
 
         //recieve and format the response
-		String[] msgs = Pattern.compile("\\[|,|\\]").split(dataInputStream.readUTF());
+		String reply = dataInputStream.readUTF();
+        reply =  reply.replaceFirst("bundle ", "");
+		String[] msgs = Pattern.compile("\\[|,|\\]").split(reply);
 		int count = msgs.length;
 		
 		System.out.println(Arrays.toString(msgs));

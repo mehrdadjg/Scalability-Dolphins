@@ -111,6 +111,7 @@ class ProxyWorker implements Runnable{
      * clears the isRunning flag which allows the thread to terminate it's loop and clean up
      */
     void shutdown(){
+        timeoutTimer.setTimeoutFlag();
         isRunning = false;
     }
 

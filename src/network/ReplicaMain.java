@@ -168,13 +168,20 @@ public class ReplicaMain implements Runnable{
             master.dataOutputStream.writeUTF("transformations " + TNold + " "+ TNmax);
             master.dataOutputStream.flush();
             //recieve and format the response
-            String[] msgs = Pattern.compile("\\[|,|\\]").split(master.dataInputStream.readUTF());
+            String reply = master.dataInputStream.readUTF();
+            if (reply.startsWith("bundle ")){
+                reply = reply.substring("bundle ".length());
+                String[] msgs = Pattern.compile("\\[|,|\\]").split(reply);
 
-            //store nonempty values from the response array
-            for (int i = 1; i < msgs.length; i++){
-                if (msgs[i].length() > 0){
-                    fileHandler.append(msgs[i]);
+                //store nonempty values from the response array
+                for (int i = 1; i < msgs.length; i++){
+                    if (msgs[i].length() > 0){
+                        fileHandler.append(msgs[i]);
+                    }
                 }
+            } else {
+                master.dataOutputStream.writeUTF("error:incorrect format");
+                master.dataOutputStream.flush();
             }
         }
 

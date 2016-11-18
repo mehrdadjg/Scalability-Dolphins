@@ -53,7 +53,7 @@ public class ReplicaReceiver implements Runnable{
                                     break;
                                 case "transformations" :
                                     //prepare yourself
-                                    socketStreamContainer.dataOutputStream.writeUTF(Arrays.toString(Arrays.copyOfRange(fileHandler.read(), Integer.parseInt(msg.split(" ")[1]), Integer.parseInt(msg.split(" ")[2]))));
+                                    socketStreamContainer.dataOutputStream.writeUTF("bundle " + Arrays.toString(Arrays.copyOfRange(fileHandler.read(), Integer.parseInt(msg.split(" ")[1]), Integer.parseInt(msg.split(" ")[2]))));
                                     socketStreamContainer.dataOutputStream.flush();
                                     break;
                                 default:
