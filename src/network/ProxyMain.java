@@ -22,6 +22,7 @@ public class ProxyMain implements Runnable{
     private Vector<ProxyReplicaWorker> replicas = new Vector<>();
     private BlockingQueue msgs = new BlockingQueue();
     private RecoveryManager recoveryManager = new RecoveryManager(replicas);
+    private boolean systemOffline = false;
 
     public ProxyMain(int clientPort, int replicaPort){
         this.clientPort = clientPort;
@@ -35,7 +36,6 @@ public class ProxyMain implements Runnable{
     public void run() {
         ExecutorService executorService = Executors.newCachedThreadPool();
 
-        //TODO Abort if desired port is already taken
         try(ServerSocket clientSocket = new ServerSocket(clientPort); ServerSocket replicaSocket = new ServerSocket(replicaPort)) {
             System.out.println("Server started. local address is: " + InetAddress.getLocalHost() + ":" + clientSocket.getLocalPort());
             clientSocket.setSoTimeout(10); //set a socket timeout so that accept() does not block forever and lets us exit the loop without interrupting normal execution
@@ -62,12 +62,24 @@ public class ProxyMain implements Runnable{
                     //s.printStackTrace();              //suppress timeout exceptions when no connection requests occur
                 }
 
+                //TODO Enable once issue #24 is fixed
+                //If no replicas are available, respond to all client updates with error message
+                /*
+                if (replicas.isEmpty()){
+                    systemOffline();
+                } else {
+                    systemOnline();
+                }
+                */
+
                 //read all available messages
                 while (msgs.available()){
                     broadcast(msgs.retrieve());
                 }
-
             }
+        } catch (java.net.BindException e){
+            System.out.println("One or more of the requested ports are already taken");
+            System.out.println("Aborting");
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -114,6 +126,30 @@ public class ProxyMain implements Runnable{
                 clients.remove(p);
                 //e.printStackTrace();
             }
+        }
+    }
+
+    /**
+     * Sets a flag to disable workers from accepting any new updates
+     */
+    private void systemOffline() {
+        if (!systemOffline){
+            for (ProxyWorker p : clients){
+                p.setOffline(true);
+            }
+            systemOffline = true;
+        }
+    }
+
+    /**
+     * Disables a flag and allows workers to continue normal operation
+     */
+    private void systemOnline() {
+        if (systemOffline){
+            for (ProxyWorker p : clients){
+                p.setOffline(false);
+            }
+            systemOffline = false;
         }
     }
 }

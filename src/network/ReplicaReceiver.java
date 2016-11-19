@@ -4,11 +4,8 @@ import handlers.FileHandler;
 import util.SocketStreamContainer;
 import util.TimeoutTimer;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.ServerSocket;
-import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.util.Arrays;
 
@@ -56,7 +53,7 @@ public class ReplicaReceiver implements Runnable{
                                     break;
                                 case "transformations" :
                                     //prepare yourself
-                                    socketStreamContainer.dataOutputStream.writeUTF(Arrays.toString(Arrays.copyOfRange(fileHandler.read(), Integer.parseInt(msg.split(" ")[1]), Integer.parseInt(msg.split(" ")[2]))));
+                                    socketStreamContainer.dataOutputStream.writeUTF("bundle " + Arrays.toString(Arrays.copyOfRange(fileHandler.read(), Integer.parseInt(msg.split(" ")[1]), Integer.parseInt(msg.split(" ")[2]))));
                                     socketStreamContainer.dataOutputStream.flush();
                                     break;
                                 default:
@@ -84,7 +81,7 @@ public class ReplicaReceiver implements Runnable{
      * clears the isRunning flag which allows the thread to terminate it's loop and clean up
      */
     public void shutdown(){
-        //TODO override timer when shutdown is requested to avoid waiting for timeouts
+        timer.setTimeoutFlag();
         isRunning = false;
     }
 }

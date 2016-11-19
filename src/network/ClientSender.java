@@ -25,6 +25,8 @@ public class ClientSender implements Runnable {
 		while(isRunning) {
 			String line = scanner.nextLine();
 			
+			if (line == null) {continue;}
+			
 			for(int k = 0; k < line.length(); k++) {
 				char c = line.charAt(k);
 				
