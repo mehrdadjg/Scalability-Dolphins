@@ -9,6 +9,7 @@ import transformations.OperationalTransformation;
 import util.DocumentUpdate;
 import util.Logger;
 import util.Logger.LogType;
+import util.Resources;
 
 public class ClientReceiver implements Runnable {
 	
@@ -41,12 +42,9 @@ public class ClientReceiver implements Runnable {
 					continue;
 				}
 			} catch(IOException e) {
-				System.err.println("ERROR IN CLIENT. Cannot read from the incoming stream.");
-				if(Client.debugging) {
-					e.printStackTrace();
-				} else {
-					return;
-				}
+				Logger.log("ERROR IN CLIENT. Cannot read from the incoming stream.", LogType.Error);
+				reconnect();
+				continue;
 			}
 			
 			DocumentUpdate incomingUpdate = DocumentUpdate.fromString(input);
@@ -62,6 +60,22 @@ public class ClientReceiver implements Runnable {
 			
 			Client.performIncomingUpdate(incomingUpdate);
 		}
+	}
+
+	private void reconnect() {
+		while(true) {
+			if(Client.reconnect()) {
+				break;
+			} else {
+				try {
+					Thread.sleep(Resources.RECONNECTRETRYINTERVAL);
+				} catch (InterruptedException e) { }
+			}
+		}
+	}
+
+	public void setInputStream(DataInputStream dataInputStream) {
+		this.dataInputStream = dataInputStream;
 	}
 	
 }

@@ -45,9 +45,12 @@ public class Client{
     private static Thread			receiverThread		= null;
     private static Thread			senderThread		= null;
     
-    public static final boolean		debugging			= true;
+    public	static final boolean	debugging			= true;
     
-    public static final String		id					= Client.getSelfMAC() + new Random().nextInt();
+    public	static final String		id					= Client.getSelfMAC() + new Random().nextInt();
+    
+    private static ClientReceiver	receiver			= null;
+    private static ClientSender		sender				= null;
     
     public static void main(String[] args){
     	Logger.initialize(ProcessType.Client);
@@ -100,14 +103,37 @@ public class Client{
     		}
     	}
     	
-    	ClientReceiver	receiver	= new ClientReceiver(dataInputStream, approvedUpdates, unapprovedUpdates);
-    	ClientSender	sender		= new ClientSender(dataOutputStream);
+    	receiver	= new ClientReceiver(dataInputStream, approvedUpdates, unapprovedUpdates);
+    	sender		= new ClientSender(dataOutputStream);
     	
     	receiverThread	= new Thread(receiver);
     	senderThread	= new Thread(sender);
     	
     	receiverThread.start();
     	senderThread.start();
+    }
+    
+    public static boolean reconnect() {
+    	try {
+    		Logger.log("Attempting to reconnect to the proxy...", LogType.Info);
+	    	socket = new Socket(host, port);
+			
+	    	Logger.log("Initializing streams...", LogType.Info);
+			dataInputStream = new DataInputStream(socket.getInputStream());
+			dataOutputStream = new DataOutputStream(socket.getOutputStream());
+			
+			Logger.log("Requesting lost updates...", LogType.Info);
+			initialize();
+			
+			Logger.log("Finalizing the process...", LogType.Info);
+			receiver.setInputStream(dataInputStream);
+			sender.setOutputSender(dataOutputStream);
+			Logger.log("Reconnected...", LogType.Info);
+			return true;
+    	} catch(IOException e) {
+    		Logger.log("Reconnect failed.", LogType.Error);
+    		return false;
+    	}
     }
     
     private static void initialize() throws IOException {
