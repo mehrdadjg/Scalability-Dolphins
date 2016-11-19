@@ -163,25 +163,26 @@ public class DocumentUpdate{
     	String[] inputList = input.split(" ");
     	
     	DocumentUpdate out = new DocumentUpdate();
-//    	out.intendedPosition		= Integer.parseInt(inputList[0]);
-//    	out.actualPosition			= Integer.parseInt(inputList[1]);
-//    	out.transformationNumber	= Integer.parseInt(inputList[2]);
-//    	out.c						= (char) Integer.parseInt(inputList[3]);
-//    	out.mac						= inputList[4];
     	
     	String header = inputList[0];
-    	if(header.matches("delete")) {
-    		out.intendedPosition		= Integer.parseInt(inputList[2]);
-        	out.actualPosition			= Integer.parseInt(inputList[3]);
-        	out.transformationNumber	= Integer.parseInt(inputList[4]);
-        	out.id						= inputList[5];
-        	out.c						= DocumentUpdate.BACKSPACE;
-    	} else if(header.matches("add")) {
-    		out.intendedPosition		= Integer.parseInt(inputList[2]);
-        	out.actualPosition			= Integer.parseInt(inputList[3]);
-        	out.transformationNumber	= Integer.parseInt(inputList[4]);
-        	out.id						= inputList[5];
-        	out.c						= (char) Integer.parseInt(inputList[6]);
+    	try {
+	    	if(header.matches("delete")) {
+	    		out.intendedPosition		= Integer.parseInt(inputList[2]);
+	        	out.actualPosition			= Integer.parseInt(inputList[3]);
+	        	out.transformationNumber	= Integer.parseInt(inputList[4]);
+	        	out.id						= inputList[5];
+	        	out.c						= DocumentUpdate.BACKSPACE;
+	    	} else if(header.matches("add")) {
+	    		out.intendedPosition		= Integer.parseInt(inputList[2]);
+	        	out.actualPosition			= Integer.parseInt(inputList[3]);
+	        	out.transformationNumber	= Integer.parseInt(inputList[4]);
+	        	out.id						= inputList[5];
+	        	out.c						= (char) Integer.parseInt(inputList[6]);
+	    	} else {
+	    		return null;
+	    	}
+    	} catch (Exception e) {
+    		return null;
     	}
     	
     	return out;

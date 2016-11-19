@@ -58,5 +58,9 @@ public class ClientSender implements Runnable {
 		
 		scanner.close();
 	}
+
+	public void setOutputSender(DataOutputStream dataOutputStream) {
+		this.dataOutputStream = dataOutputStream;
+	}
 	
 }

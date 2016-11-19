@@ -7,6 +7,9 @@ import java.util.ArrayList;
 import launcher.Client;
 import transformations.OperationalTransformation;
 import util.DocumentUpdate;
+import util.Logger;
+import util.Logger.LogType;
+import util.Resources;
 
 public class ClientReceiver implements Runnable {
 	
@@ -34,25 +37,45 @@ public class ClientReceiver implements Runnable {
 				if(Client.debugging) {
 					System.out.print("input: " + input);
 				}
-				if(input.startsWith("[")) {
+				if(input.startsWith("bundle")) {
 					Client.performIncomingUpdates(input);
 					continue;
 				}
 			} catch(IOException e) {
-				System.err.println("ERROR IN CLIENT. Cannot read from the incoming stream.");
-				if(Client.debugging) {
-					e.printStackTrace();
-				} else {
-					return;
-				}
+				Logger.log("ERROR IN CLIENT. Cannot read from the incoming stream.", LogType.Error);
+				reconnect();
+				continue;
 			}
 			
 			DocumentUpdate incomingUpdate = DocumentUpdate.fromString(input);
+			
+			if(incomingUpdate == null) {
+				Logger.log("Incorrect protocol detected in the incoming stream. Packet dropped.", LogType.Error);
+				Logger.log("Incorrect input: " + input, LogType.Info);
+				Client.informProxy("error");
+				continue;
+			}
 			
 			OperationalTransformation.update(approvedUpdates, unapprovedUpdates, incomingUpdate);
 			
 			Client.performIncomingUpdate(incomingUpdate);
 		}
+	}
+
+	private void reconnect() {
+		while(true) {
+			if(Client.reconnect()) {
+				break;
+			} else {
+				try {
+					Thread.sleep(Resources.RECONNECTRETRYINTERVAL);
+				} catch (InterruptedException e) { }
+			}
+		}
+	}
+
+	public void setInputStream(DataInputStream dataInputStream) {
+		this.dataInputStream = dataInputStream;
 	}
 	
 }

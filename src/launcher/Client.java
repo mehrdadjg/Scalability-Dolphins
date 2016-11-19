@@ -2,6 +2,9 @@ package launcher;
 
 import util.DocumentUpdate;
 import util.DocumentUpdate.PositionType;
+import util.Logger.LogType;
+import util.Logger.ProcessType;
+import util.Logger;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -42,11 +45,15 @@ public class Client{
     private static Thread			receiverThread		= null;
     private static Thread			senderThread		= null;
     
-    public static final boolean		debugging			= true;
+    public	static final boolean	debugging			= true;
     
-    public static final String		id					= Client.getSelfMAC() + new Random().nextInt();
+    public	static final String		id					= Client.getSelfMAC() + new Random().nextInt();
+    
+    private static ClientReceiver	receiver			= null;
+    private static ClientSender		sender				= null;
     
     public static void main(String[] args){
+    	Logger.initialize(ProcessType.Client);
     	System.out.println("The default proxy server address is " + host + ":" + String.valueOf(port));
     	System.out.println("If this is incorrect give the actual address using the same format," + 
     			" otherwise type anything.");
@@ -96,14 +103,37 @@ public class Client{
     		}
     	}
     	
-    	ClientReceiver	receiver	= new ClientReceiver(dataInputStream, approvedUpdates, unapprovedUpdates);
-    	ClientSender	sender		= new ClientSender(dataOutputStream);
+    	receiver	= new ClientReceiver(dataInputStream, approvedUpdates, unapprovedUpdates);
+    	sender		= new ClientSender(dataOutputStream);
     	
     	receiverThread	= new Thread(receiver);
     	senderThread	= new Thread(sender);
     	
     	receiverThread.start();
     	senderThread.start();
+    }
+    
+    public static boolean reconnect() {
+    	try {
+    		Logger.log("Attempting to reconnect to the proxy...", LogType.Info);
+	    	socket = new Socket(host, port);
+			
+	    	Logger.log("Initializing streams...", LogType.Info);
+			dataInputStream = new DataInputStream(socket.getInputStream());
+			dataOutputStream = new DataOutputStream(socket.getOutputStream());
+			
+			Logger.log("Requesting lost updates...", LogType.Info);
+			initialize();
+			
+			Logger.log("Finalizing the process...", LogType.Info);
+			receiver.setInputStream(dataInputStream);
+			sender.setOutputSender(dataOutputStream);
+			Logger.log("Reconnected...", LogType.Info);
+			return true;
+    	} catch(IOException e) {
+    		Logger.log("Reconnect failed.", LogType.Error);
+    		return false;
+    	}
     }
     
     private static void initialize() throws IOException {
@@ -230,4 +260,19 @@ public class Client{
     public static void removeUnapprovedUpdate(DocumentUpdate update) {
     	unapprovedUpdates.remove(update);
     }
+    
+    /**
+     * Sends a string to the proxy. This message is not crucial to the functionality
+     * of the process.
+     * @param msg The message to be sent to the proxy.
+     */
+	public static void informProxy(String msg) {
+		try {
+			dataOutputStream.writeUTF(msg);
+			Logger.log("Message sent to proxy: " + msg, LogType.Info);
+		} catch (IOException e) {
+			Logger.log("Failed sending a message to the proxy.", LogType.Warning);
+			Logger.log("The failed message: " + msg, LogType.Info);
+		}
+	}
 }
