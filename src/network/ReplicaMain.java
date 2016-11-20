@@ -43,7 +43,7 @@ public class ReplicaMain implements Runnable{
                 System.out.println("Connected to proxy");
 
                 //retrieve file contents
-//                requestUpdates(socketStreamContainer);
+                requestUpdates(socketStreamContainer);
 
                 timeoutTimer.startTimer(pingInterval);
                 isRunning = true;
@@ -131,8 +131,8 @@ public class ReplicaMain implements Runnable{
                 s.dataOutputStream.writeUTF("query_tn");
                 s.dataOutputStream.flush();
             } catch (IOException e){
-                s.close();
-                replicas.remove(s);
+                //s.close();
+                //replicas.remove(s);
             }
         }
 
@@ -158,8 +158,8 @@ public class ReplicaMain implements Runnable{
                     throw new IOException("Replica timeout");
                 }
             } catch (IOException e){
-                s.close();
-                replicas.remove(s);
+                //replicas.remove(s);
+                //s.close();
             }
         }
 
@@ -184,6 +184,11 @@ public class ReplicaMain implements Runnable{
                 master.dataOutputStream.flush();
             }
         }
+
+        for (SocketStreamContainer s : replicas){
+            s.close();
+        }
+        replicas.removeAllElements();
 
         System.out.println("finished updating");
     }
