@@ -29,6 +29,6 @@ class ProxyReplicaWorker extends ProxyWorker {
      */
     @Override
     void operationUpdate(String msg) throws IOException{
-        sendUTF(groupManager.replicasToString());
+        sendUTF(groupManager.workersToString());
     }
 }

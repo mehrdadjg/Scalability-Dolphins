@@ -19,8 +19,9 @@ public class ProxyMain implements Runnable{
     private boolean isRunning;
     private BlockingQueue msgs = new BlockingQueue();
     private boolean systemOffline = false;
-    private GroupManager groupManager = new GroupManager();
-    private RecoveryManager recoveryManager = new RecoveryManager(groupManager);
+    private GroupManager<ProxyWorker> clientGroupManager = new GroupManager<>();
+    private GroupManager<ProxyReplicaWorker> replicaGroupManager = new GroupManager<>();
+    private RecoveryManager recoveryManager = new RecoveryManager(replicaGroupManager);
 
     public ProxyMain(int clientPort, int replicaPort){
         this.clientPort = clientPort;
@@ -44,7 +45,7 @@ public class ProxyMain implements Runnable{
                     Socket socket = clientSocket.accept();
                     System.out.println("Accepted new client at:" + socket.getInetAddress() + ":" + socket.getPort());
                     ProxyWorker proxyWorker = new ProxyWorker(socket, msgs, recoveryManager);
-                    groupManager.addClient(proxyWorker);
+                    clientGroupManager.add(proxyWorker);
                     executorService.submit(proxyWorker);
                 } catch (SocketTimeoutException s){
                     //s.printStackTrace();              //suppress timeout exceptions when no connection requests occur
@@ -53,8 +54,8 @@ public class ProxyMain implements Runnable{
                 try{
                     Socket socket = replicaSocket.accept();
                     System.out.println("Accepted new replica at: " + socket.getInetAddress() + ":" + socket.getPort());
-                    ProxyReplicaWorker replicaWorker = new ProxyReplicaWorker(socket, msgs,recoveryManager, groupManager);
-                    groupManager.addReplica(replicaWorker);
+                    ProxyReplicaWorker replicaWorker = new ProxyReplicaWorker(socket, msgs,recoveryManager, replicaGroupManager);
+                    replicaGroupManager.add(replicaWorker);
                     executorService.submit(replicaWorker);
                 } catch (SocketTimeoutException s){
                     //s.printStackTrace();              //suppress timeout exceptions when no connection requests occur
@@ -91,7 +92,8 @@ public class ProxyMain implements Runnable{
      */
     public void shutdown(){
         isRunning = false;
-        groupManager.shutdown();
+        replicaGroupManager.shutdown();
+        clientGroupManager.shutdown();
     }
 
     /**
@@ -99,7 +101,8 @@ public class ProxyMain implements Runnable{
      * @param msg the message to be broadcast
      */
     private void broadcast(String msg){
-        groupManager.broadcast(msg);
+        replicaGroupManager.broadcast(msg);
+        clientGroupManager.broadcast(msg);
     }
 
     /**

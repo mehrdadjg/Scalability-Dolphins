@@ -6,29 +6,19 @@ import java.util.Vector;
 /**
  * INCOMPLETE
  */
-class GroupManager{
-    private Vector<ProxyWorker> clients = new Vector<>();
-    private Vector<ProxyReplicaWorker> replicas = new Vector<>();
+class GroupManager<E extends ProxyWorker>{
+    private Vector<E> workers = new Vector<E>();
 
-    void addClient(ProxyWorker proxyWorker){
-        clients.add(proxyWorker);
+    void add(E worker){
+        workers.add(worker);
     }
 
-    void addReplica(ProxyReplicaWorker proxyReplicaWorker){
-        replicas.add(proxyReplicaWorker);
+    synchronized void remove(E worker){
+        workers.remove(worker);
     }
 
-    private synchronized void removeClient(ProxyWorker proxyWorker){
-        clients.remove(proxyWorker);
-    }
-
-    synchronized void removeReplica(ProxyReplicaWorker proxyReplicaWorker){
-        replicas.remove(proxyReplicaWorker);
-    }
-
-    void shutdown() {
-        clients.forEach(ProxyWorker::shutdown);
-        replicas.forEach(ProxyReplicaWorker::shutdown);
+    void shutdown(){
+        workers.forEach(ProxyWorker::shutdown);
     }
 
     /**
@@ -36,45 +26,33 @@ class GroupManager{
      * @param msg the message to be broadcast
      */
     void broadcast(String msg){
-        for (ProxyReplicaWorker p : replicas){
+        for (E worker : workers){
             try{
-                p.sendUTF(msg);
-                System.out.println("sent message to >" + p);
+                worker.sendUTF(msg);
+                System.out.println("sent message to >" + worker);
             } catch (IOException e) {
                 //if sending has failed, socket is closed
                 System.out.println("replica disconnected");
-                p.shutdown();
-                removeReplica(p);
-                //e.printStackTrace();
-            }
-        }
-        for (ProxyWorker p : clients){
-            try {
-                p.sendUTF(msg);
-                System.out.println("sent message to >" + p);
-            } catch (IOException e) {
-                //if sending has failed, client has likely disconnected
-                System.out.println("client disconnected");
-                p.shutdown();
-                removeClient(p);
+                worker.shutdown();
+                remove(worker);
                 //e.printStackTrace();
             }
         }
     }
 
-    String replicasToString() {
+    String workersToString() {
         String replicaList = "[";
-        for (ProxyReplicaWorker s : replicas){
+        for (E s : workers){
             replicaList += "," + s;
         }
         return  replicaList.replaceFirst(",","") + "]";
     }
 
     public boolean replicasOnline() {
-        return (replicas.size() > 0);
+        return (workers.size() > 0);
     }
 
-    public ProxyReplicaWorker firstReplica() {
-        return replicas.firstElement();
+    public E firstElement() {
+        return workers.firstElement();
     }
 }
