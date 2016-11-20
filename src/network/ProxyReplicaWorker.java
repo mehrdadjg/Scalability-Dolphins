@@ -4,23 +4,22 @@ import util.BlockingQueue;
 
 import java.io.IOException;
 import java.net.Socket;
-import java.util.Vector;
 
 /**
  * A Threaded worker process overloaded to handle replica connections
  */
 class ProxyReplicaWorker extends ProxyWorker {
-    private Vector<ProxyReplicaWorker> replicas;
+    private GroupManager groupManager;
 
     /**
      * @param socket The socket which this worker should transmit and recieve from
      * @param msgs   The blocking queue to deliver messages to
-     * @param replicas a reference to the list of currently connected replicas
+     * @param groupManager The group manager for connected systems
      * @throws IOException If the the socket is unable to produce input and/or output streams
      */
-    ProxyReplicaWorker(Socket socket, BlockingQueue msgs, RecoveryManager recoveryManager, Vector<ProxyReplicaWorker> replicas) throws IOException {
+    ProxyReplicaWorker(Socket socket, BlockingQueue msgs, RecoveryManager recoveryManager, GroupManager groupManager) throws IOException {
         super(socket, msgs, recoveryManager);
-        this.replicas = replicas;
+        this.groupManager = groupManager;
     }
 
     /**
@@ -30,13 +29,6 @@ class ProxyReplicaWorker extends ProxyWorker {
      */
     @Override
     void operationUpdate(String msg) throws IOException{
-        String replicaList = "[";
-        for (ProxyReplicaWorker s : replicas){
-            if (this != s){
-                replicaList += "," + s;
-            }
-        }
-        replicaList = replicaList.replaceFirst(",","") + "]";
-        sendUTF(replicaList);
+        sendUTF(groupManager.replicasToString());
     }
 }

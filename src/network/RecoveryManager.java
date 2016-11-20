@@ -7,21 +7,21 @@ import util.TimeoutTimer;
 
 import java.io.IOException;
 import java.net.Socket;
-import java.util.Vector;
+import java.util.regex.Pattern;
 
 /**
  * Helps a client or replica catch up after connecting
  */
 class RecoveryManager {
-    private Vector<ProxyReplicaWorker> replicas = new Vector<>(); //A list of available replicas to consult
+    private GroupManager groupManager; //A list of available replicas to consult
     private String recoveryList = emptyList; //A mailbox for the list of changes needed for a recovery that is set by a ProxyReplicaWorker in a different thread
     private final static int defaultTimeout = 500;
     private final static String emptyList = "[]";
     private TimeoutTimer timer = new TimeoutTimer();
     private int recoveryPort = Resources.RECOVERYPORT;
 
-    RecoveryManager(Vector<ProxyReplicaWorker> replicas){
-        this.replicas = replicas;
+    RecoveryManager(GroupManager groupManager){
+        this.groupManager = groupManager;
     }
 
     void recover(ProxyWorker recoverer, int TNold){
@@ -29,12 +29,14 @@ class RecoveryManager {
         boolean recoveryComplete = false;
         while (!recoveryComplete){
             //if no replicas are online, abort
-            if (replicas.size() == 0){
+            if (groupManager.replicasOnline()){
                 break;
             }
 
+            String[] replicaAddresses = Pattern.compile("\\[|,|\\]").split(groupManager.replicasToString());
+
             //pick any replica
-            ProxyReplicaWorker master = replicas.firstElement();
+            ProxyReplicaWorker master = groupManager.firstReplica();
             String masterIP = master.toString().split(":")[0];
 
             try (SocketStreamContainer masterConnection = new SocketStreamContainer(new Socket(masterIP, recoveryPort))){
@@ -66,7 +68,7 @@ class RecoveryManager {
                 }
 
             } catch (IOException e) {
-                replicas.remove(master);
+                groupManager.removeReplica(master);
                 master.shutdown();
                 continue;
                 //e.printStackTrace();

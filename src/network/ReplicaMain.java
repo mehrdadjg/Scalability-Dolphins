@@ -1,17 +1,17 @@
 package network;
 
 
+import handlers.FileHandler;
+import util.Resources;
+import util.SocketStreamContainer;
+import util.TimeoutTimer;
+
 import java.io.IOException;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.Vector;
 import java.util.regex.Pattern;
-
-import handlers.FileHandler;
-import util.Resources;
-import util.SocketStreamContainer;
-import util.TimeoutTimer;
 
 /**
  * Handles the incoming and outgoing connections
@@ -43,7 +43,7 @@ public class ReplicaMain implements Runnable{
                 System.out.println("Connected to proxy");
 
                 //retrieve file contents
-                requestUpdates(socketStreamContainer);
+//                requestUpdates(socketStreamContainer);
 
                 timeoutTimer.startTimer(pingInterval);
                 isRunning = true;
