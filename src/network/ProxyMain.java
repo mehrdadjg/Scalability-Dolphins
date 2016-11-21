@@ -102,6 +102,7 @@ public class ProxyMain implements Runnable{
      * @param msg the message to be broadcast
      */
     private void broadcast(String msg){
+        Vector<ProxyWorker> deadConnections = new Vector<>();
         //TODO actively check for disconnects, rather than only when sending
         for (ProxyReplicaWorker p : replicas){
             try{
@@ -110,11 +111,18 @@ public class ProxyMain implements Runnable{
             } catch (IOException e) {
                 //if sending has failed, socket is closed
                 System.out.println("replica disconnected");
-                p.shutdown();
-                replicas.remove(p);
+                deadConnections.add(p);
                 //e.printStackTrace();
             }
         }
+
+        for (ProxyWorker p : deadConnections){
+            p.shutdown();
+            replicas.remove(p);
+        }
+
+        deadConnections.removeAllElements();
+
         for (ProxyWorker p : clients){
             try {
                 p.sendUTF(msg);
@@ -122,11 +130,17 @@ public class ProxyMain implements Runnable{
             } catch (IOException e) {
                 //if sending has failed, client has likely disconnected
                 System.out.println("client disconnected");
-                p.shutdown();
-                clients.remove(p);
+                deadConnections.add(p);
                 //e.printStackTrace();
             }
         }
+
+        for (ProxyWorker p : deadConnections){
+            p.shutdown();
+            clients.remove(p);
+        }
+
+        deadConnections.removeAllElements();
     }
 
     /**

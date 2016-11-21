@@ -125,17 +125,23 @@ public class ReplicaMain implements Runnable{
             }
         }
 
+        Vector<SocketStreamContainer> deadConnections = new Vector<SocketStreamContainer>();
+
         //query all replicas for their TNs
         for (SocketStreamContainer s : replicas){
             try{
                 s.dataOutputStream.writeUTF("query_tn");
                 s.dataOutputStream.flush();
             } catch (IOException e){
-                s.close();
-                replicas.remove(s);
+                deadConnections.add(s);
             }
         }
 
+        for (SocketStreamContainer s : deadConnections){
+            s.close();
+            replicas.remove(s);
+        }
+        deadConnections.removeAllElements();
 
         //wait for reply
         TimeoutTimer timer = new TimeoutTimer();
@@ -158,10 +164,15 @@ public class ReplicaMain implements Runnable{
                     throw new IOException("Replica timeout");
                 }
             } catch (IOException e){
-                s.close();
-                replicas.remove(s);
+                deadConnections.add(s);
             }
         }
+
+        for (SocketStreamContainer s : deadConnections){
+            s.close();
+            replicas.remove(s);
+        }
+        deadConnections.removeAllElements();
 
         //request transformations from higher replica
         if (master != null){
