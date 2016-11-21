@@ -26,18 +26,24 @@ class GroupManager<E extends ProxyWorker>{
      * @param msg the message to be broadcast
      */
     void broadcast(String msg){
+        Vector<E> deadWorkers = new Vector<E>();
         for (E worker : workers){
             try{
                 worker.sendUTF(msg);
                 System.out.println("sent message to >" + worker);
             } catch (IOException e) {
                 //if sending has failed, socket is closed
-                System.out.println("replica disconnected");
+                System.out.println("replica/client disconnected");
                 worker.shutdown();
-                remove(worker);
+                //remove(worker);
+
                 //e.printStackTrace();
             }
         }
+        for (E worker : deadWorkers){
+            remove(worker);
+        }
+        deadWorkers.removeAllElements();
     }
 
     String workersToString() {

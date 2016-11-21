@@ -1,8 +1,6 @@
 package network;
 
 import util.BlockingQueue;
-import util.SocketStreamContainer;
-import util.TimeoutTimer;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -15,15 +13,13 @@ import static java.lang.Thread.yield;
  * A threaded worker process to handle communications to and from a single client
  */
 class ProxyWorker implements Runnable{
-    private Socket socket;
+    Socket socket;
     private DataInputStream dataInputStream;
     private DataOutputStream dataOutputStream;
     private boolean isRunning;
     private BlockingQueue msgs;
     private RecoveryManager recoveryManager;
     private volatile boolean offline = false;
-    TimeoutTimer timeoutTimer = new TimeoutTimer();
-    int timeout = 3000;
 
     /**
      *
@@ -48,40 +44,7 @@ class ProxyWorker implements Runnable{
             while (isRunning){
                 //readUTF() blocks until success, so we must check before calling it to avoid waiting if a packet isnt ready
                 if (dataInputStream.available() > 0){
-                    timeoutTimer.startTimer(timeout);
-                    String msg = dataInputStream.readUTF();
-
-                    //TODO replace print statements with logging framework
-                    if (!msg.startsWith("ping")){
-                        System.out.println("Incoming Message from " + socket.getInetAddress() + ":" + socket.getPort() + " > " +  msg);
-                    }
-
-                    if (offline){
-                        //System offline
-                        sendUTF("error: system offline");
-                    } else
-                    {
-                        switch (msg.split(" ")[0]){
-                            case "add"  : case "delete" :
-                                //add the received message to the queue for the server to broadcast later
-                                operationDeliver(msg);
-                                break;
-                            case "update" :
-                                operationUpdate(msg);
-                                break;
-                            case "ping" :
-                                break;
-                            default:
-                                //Discard messages that are not recognized as part of the protocol
-                                sendUTF("error:incorrect format");
-                                break;
-                        }
-                    }
-                }
-                if (timeoutTimer.isTimeoutFlag()){
-                    //TODO Enable this block to disconnect timed out clients
-                    //shutdown();
-                    //System.out.println("Client timed out");
+                    receiveMessage(dataInputStream.readUTF());
                 }
                 yield();
             }
@@ -95,6 +58,31 @@ class ProxyWorker implements Runnable{
         }
     }
 
+    void receiveMessage(String msg) throws IOException{
+        //TODO replace print statements with logging framework
+        if (!msg.startsWith("ping")) {
+            System.out.println("Incoming Message from " + socket.getInetAddress() + ":" + socket.getPort() + " > " + msg);
+        }
+
+        if (offline){
+            //System offline
+            sendUTF("error: system offline");
+        } else {
+            switch (msg.split(" ")[0]){
+                case "add"  : case "delete" :
+                    //add the received message to the queue for the server to broadcast later
+                    operationDeliver(msg);
+                    break;
+                case "update" :
+                    operationUpdate(msg);
+                    break;
+                default:
+                    //Discard messages that are not recognized as part of the protocol
+                    sendUTF("error:incorrect format");
+                    break;
+            }
+        }
+    }
 
     /**
      * Retrieves updates with a TN of <TN> or higher from any available replica and sends them to the client
@@ -113,8 +101,8 @@ class ProxyWorker implements Runnable{
      * clears the isRunning flag which allows the thread to terminate it's loop and clean up
      */
     void shutdown(){
-        timeoutTimer.setTimeoutFlag();
         isRunning = false;
+        System.out.println("disconnected worker >" + socket);
     }
 
     /**

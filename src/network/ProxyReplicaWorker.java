@@ -4,12 +4,16 @@ import util.BlockingQueue;
 
 import java.io.IOException;
 import java.net.Socket;
+import java.util.Timer;
+import java.util.TimerTask;
 
 /**
  * A Threaded worker process overloaded to handle replica connections
  */
 class ProxyReplicaWorker extends ProxyWorker {
     private GroupManager groupManager;
+    private Timer timeoutTimer = new Timer(true);
+    int timeout = 3000;
 
     /**
      * @param socket The socket which this worker should transmit and recieve from
@@ -20,6 +24,34 @@ class ProxyReplicaWorker extends ProxyWorker {
     ProxyReplicaWorker(Socket socket, BlockingQueue msgs, RecoveryManager recoveryManager, GroupManager groupManager) throws IOException {
         super(socket, msgs, recoveryManager);
         this.groupManager = groupManager;
+    }
+
+    @Override
+    void receiveMessage(String msg) throws IOException {
+        timeoutTimer.cancel();
+        timeoutTimer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                shutdown();
+            }
+        }, timeout);
+
+        //TODO replace print statements with logging framework
+        if (!msg.startsWith("ping")) {
+            System.out.println("Incoming Message from " + socket.getInetAddress() + ":" + socket.getPort() + " > " + msg);
+        }
+
+        switch (msg.split(" ")[0]) {
+            case "update":
+                operationUpdate(msg);
+                break;
+            case "ping" :
+                break;
+            default:
+                //Discard messages that are not recognized as part of the protocol
+                sendUTF("error:incorrect format");
+                break;
+        }
     }
 
     /**
