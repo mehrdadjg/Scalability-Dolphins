@@ -18,7 +18,7 @@ class ProxyWorker implements Runnable{
     Socket socket;
     private DataInputStream dataInputStream;
     private DataOutputStream dataOutputStream;
-    private boolean isRunning;
+    private boolean isRunning = true;
     private BlockingQueue msgs;
     private RecoveryManager recoveryManager;
     private volatile boolean offline = false;
@@ -39,10 +39,7 @@ class ProxyWorker implements Runnable{
 
     @Override
     public void run() {
-        //TODO determine if a client has disconnected and terminate thread
         try{
-
-            isRunning = true;
             while (isRunning){
                 //readUTF() blocks until success, so we must check before calling it to avoid waiting if a packet isnt ready
                 if (dataInputStream.available() > 0){
@@ -56,7 +53,8 @@ class ProxyWorker implements Runnable{
             dataOutputStream.close();
             socket.close();
         } catch (IOException e) {
-            e.printStackTrace();
+            shutdown();
+            //e.printStackTrace();
         }
     }
 
@@ -135,5 +133,9 @@ class ProxyWorker implements Runnable{
 
     void setOffline(boolean val){
         offline = val;
+    }
+
+    public boolean isShutdown() {
+        return !isRunning;
     }
 }

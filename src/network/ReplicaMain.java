@@ -85,7 +85,6 @@ public class ReplicaMain implements Runnable{
                 e.printStackTrace();
             } catch (IOException e) {
                 //Proxy is offline.
-                //TODO attempt reconnect
                 System.out.println("Disconnected from proxy. attempting reconnect");
                 shutdown();
                 //e.printStackTrace();

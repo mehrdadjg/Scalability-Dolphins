@@ -13,7 +13,7 @@ import java.util.TimerTask;
 class ProxyReplicaWorker extends ProxyWorker {
     private GroupManager groupManager;
     private Timer timeoutTimer = new Timer(true);
-    int timeout = 3000;
+    private int timeout = 3000;
 
     /**
      * @param socket The socket which this worker should transmit and recieve from
@@ -24,10 +24,10 @@ class ProxyReplicaWorker extends ProxyWorker {
     ProxyReplicaWorker(Socket socket, BlockingQueue msgs, RecoveryManager recoveryManager, GroupManager groupManager) throws IOException {
         super(socket, msgs, recoveryManager);
         this.groupManager = groupManager;
+        startTimer();
     }
 
-    @Override
-    void receiveMessage(String msg) throws IOException {
+    private void startTimer(){
         timeoutTimer.cancel();
         timeoutTimer = new Timer(true);
         timeoutTimer.schedule(new TimerTask() {
@@ -37,6 +37,11 @@ class ProxyReplicaWorker extends ProxyWorker {
                 shutdown();
             }
         }, timeout);
+    }
+
+    @Override
+    void receiveMessage(String msg) throws IOException {
+        startTimer();
 
         //TODO replace print statements with logging framework
         if (!msg.startsWith("ping")) {

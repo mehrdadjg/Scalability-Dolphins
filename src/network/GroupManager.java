@@ -1,6 +1,8 @@
 package network;
 
 import java.io.IOException;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.Vector;
 
 /**
@@ -8,6 +10,30 @@ import java.util.Vector;
  */
 class GroupManager<E extends ProxyWorker>{
     private Vector<E> workers = new Vector<E>();
+    static int cleanupInterval = 1000;
+
+    GroupManager(){
+        new Timer(true).schedule(new TimerTask() {
+            @Override
+            public void run() {
+                cleanupDeadWorkers();
+            }
+        }, cleanupInterval, cleanupInterval);
+    }
+
+    private void cleanupDeadWorkers(){
+        Vector<E> deadWorkers= new Vector<>();
+
+        for (E worker : workers){
+            if (worker.isShutdown()){
+                deadWorkers.add(worker);
+            }
+        }
+
+        for(E worker : deadWorkers){
+            remove(worker);
+        }
+    }
 
     void add(E worker){
         workers.add(worker);
@@ -35,9 +61,6 @@ class GroupManager<E extends ProxyWorker>{
                 //if sending has failed, socket is closed
                 System.out.println("replica/client disconnected");
                 worker.shutdown();
-                //remove(worker);
-
-                //e.printStackTrace();
             }
         }
         for (E worker : deadWorkers){
