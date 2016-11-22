@@ -29,9 +29,11 @@ class ProxyReplicaWorker extends ProxyWorker {
     @Override
     void receiveMessage(String msg) throws IOException {
         timeoutTimer.cancel();
+        timeoutTimer = new Timer(true);
         timeoutTimer.schedule(new TimerTask() {
             @Override
             public void run() {
+                timeoutTimer.cancel();
                 shutdown();
             }
         }, timeout);

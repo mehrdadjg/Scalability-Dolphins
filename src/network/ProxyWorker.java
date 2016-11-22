@@ -126,7 +126,7 @@ class ProxyWorker implements Runnable{
         String loopback = InetAddress.getLoopbackAddress().toString().split("/")[1];
         try {
             if (ip.compareTo(loopback) == 0){
-                return InetAddress.getLocalHost().toString().split("/")[1];
+                return InetAddress.getLocalHost().getHostAddress();
             }
         } catch (UnknownHostException e) {
         }

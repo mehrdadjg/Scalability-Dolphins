@@ -141,6 +141,7 @@ public class ReplicaMain implements Runnable{
         TimeoutTimer timer = new TimeoutTimer();
         timer.startTimer(500);
         while (!timer.isTimeoutFlag()){Thread.yield();}
+        Vector<SocketStreamContainer> deadConnections = new Vector<>();
 
         //Find the maximum
         int TNold = fileHandler.read().length;
@@ -158,9 +159,12 @@ public class ReplicaMain implements Runnable{
                     throw new IOException("Replica timeout");
                 }
             } catch (IOException e){
-                replicas.remove(s);
-                s.close();
+                deadConnections.add(s);
             }
+        }
+
+        for (SocketStreamContainer s : deadConnections){
+            replicas.remove(s);
         }
 
         //request transformations from higher replica

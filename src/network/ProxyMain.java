@@ -36,7 +36,9 @@ public class ProxyMain implements Runnable{
         ExecutorService executorService = Executors.newCachedThreadPool();
 
         try(ServerSocket clientSocket = new ServerSocket(clientPort); ServerSocket replicaSocket = new ServerSocket(replicaPort)) {
-            System.out.println("Server started. local address is: " + InetAddress.getLocalHost() + ":" + clientSocket.getLocalPort());
+            System.out.println("Server started. local address is: " + InetAddress.getLocalHost().getHostAddress());
+            System.out.println("Client port is:  " + clientSocket.getLocalPort());
+            System.out.println("Replica port is: " + replicaSocket.getLocalPort());
             clientSocket.setSoTimeout(10); //set a socket timeout so that accept() does not block forever and lets us exit the loop without interrupting normal execution
             replicaSocket.setSoTimeout(10);
             isRunning = true;
