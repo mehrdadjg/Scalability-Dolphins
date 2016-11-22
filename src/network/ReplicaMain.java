@@ -131,8 +131,8 @@ public class ReplicaMain implements Runnable{
                 s.dataOutputStream.writeUTF("query_tn");
                 s.dataOutputStream.flush();
             } catch (IOException e){
-                //s.close();
-                //replicas.remove(s);
+                s.close();
+                replicas.remove(s);
             }
         }
 
@@ -158,8 +158,8 @@ public class ReplicaMain implements Runnable{
                     throw new IOException("Replica timeout");
                 }
             } catch (IOException e){
-                //replicas.remove(s);
-                //s.close();
+                replicas.remove(s);
+                s.close();
             }
         }
 

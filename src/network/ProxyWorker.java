@@ -5,7 +5,9 @@ import util.BlockingQueue;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.Socket;
+import java.net.UnknownHostException;
 
 import static java.lang.Thread.yield;
 
@@ -120,7 +122,15 @@ class ProxyWorker implements Runnable{
 
     @Override
     public String toString() {
-        return (socket.getRemoteSocketAddress().toString().replaceFirst("/",""));
+        String ip = socket.getRemoteSocketAddress().toString().replaceFirst("/","").split(":")[0];
+        String loopback = InetAddress.getLoopbackAddress().toString().split("/")[1];
+        try {
+            if (ip.compareTo(loopback) == 0){
+                return InetAddress.getLocalHost().toString().split("/")[1];
+            }
+        } catch (UnknownHostException e) {
+        }
+        return ip;
     }
 
     void setOffline(boolean val){
