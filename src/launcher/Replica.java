@@ -14,6 +14,7 @@ import java.util.Scanner;
 public class Replica {
     private static String ip = "127.0.0.1";
     private static int port = Resources.REPLICAPORT;
+	private static int recoveryPort = Resources.RECOVERYPORT;
 
     public static void main(String[] args){
         //TODO check valid ip format with regex "\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}"
@@ -22,11 +23,14 @@ public class Replica {
 			if (args.length > 1){
 				port = Integer.parseInt(args[1]);
 			}
+			if ((args.length) > 2) {
+				recoveryPort = Integer.parseInt(args[2]);
+			}
         }
 
         ReplicaMain replicaMain;
 		try {
-			replicaMain = new ReplicaMain(ip, port);
+			replicaMain = new ReplicaMain(ip, port, recoveryPort);
 	        new Thread(replicaMain).start();
 
 	        //Await Quit command to shutdown

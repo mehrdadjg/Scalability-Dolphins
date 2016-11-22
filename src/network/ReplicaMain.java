@@ -21,13 +21,14 @@ public class ReplicaMain implements Runnable{
     private int proxyPort;
     private boolean isRunning;
     private FileHandler fileHandler = new FileHandler("file.txt");
-    private ReplicaReceiver replicaReceiver = new ReplicaReceiver(fileHandler, Resources.RECOVERYPORT);
+    private ReplicaReceiver replicaReceiver;
     private int pingInterval = 1500;
     private TimeoutTimer timeoutTimer = new TimeoutTimer();
 
-    public ReplicaMain(String ip, int port) throws IOException {
+    public ReplicaMain(String ip, int port, int recoveryPort) throws IOException {
         this.proxyIp = ip;
         this.proxyPort = port;
+        this.replicaReceiver = new ReplicaReceiver(fileHandler, recoveryPort);
     }
 
     /**
