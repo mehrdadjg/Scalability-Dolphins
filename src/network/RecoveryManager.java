@@ -29,7 +29,7 @@ class RecoveryManager {
         boolean recoveryComplete = false;
         while (!recoveryComplete){
             //if no replicas are online, abort
-            if (groupManager.replicasOnline()){
+            if (!groupManager.replicasOnline()){
                 break;
             }
 

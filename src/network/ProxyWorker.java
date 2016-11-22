@@ -102,7 +102,6 @@ class ProxyWorker implements Runnable{
      */
     void shutdown(){
         isRunning = false;
-        System.out.println("disconnected worker >" + socket);
     }
 
     /**

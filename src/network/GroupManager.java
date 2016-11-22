@@ -52,7 +52,6 @@ class GroupManager<E extends ProxyWorker>{
      * @param msg the message to be broadcast
      */
     void broadcast(String msg){
-        Vector<E> deadWorkers = new Vector<E>();
         for (E worker : workers){
             try{
                 worker.sendUTF(msg);
@@ -63,10 +62,6 @@ class GroupManager<E extends ProxyWorker>{
                 worker.shutdown();
             }
         }
-        for (E worker : deadWorkers){
-            remove(worker);
-        }
-        deadWorkers.removeAllElements();
     }
 
     String workersToString() {
