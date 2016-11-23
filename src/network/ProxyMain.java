@@ -1,6 +1,7 @@
 package network;
 
 import util.BlockingQueue;
+import util.MessageInfo;
 
 import java.io.*;
 import java.net.InetAddress;
@@ -102,9 +103,18 @@ public class ProxyMain implements Runnable{
      * broadcasts a string to all clients
      * @param msg the message to be broadcast
      */
-    private void broadcast(String msg){
-        replicaGroupManager.broadcast(msg);
-        clientGroupManager.broadcast(msg);
+    private void broadcast(MessageInfo msg){
+        replicaGroupManager.broadcast(msg.update);
+        if (replicaGroupManager.replicasOnline()){
+            clientGroupManager.broadcast(msg.update);
+        }
+        else {
+            try {
+                msg.sender.sendUTF("error: system offline");
+            } catch (IOException e) {
+                msg.sender.shutdown();
+            }
+        }
     }
 
     /**

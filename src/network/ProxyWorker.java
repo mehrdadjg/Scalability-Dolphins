@@ -14,7 +14,7 @@ import static java.lang.Thread.yield;
 /**
  * A threaded worker process to handle communications to and from a single client
  */
-class ProxyWorker implements Runnable{
+public class ProxyWorker implements Runnable{
     Socket socket;
     private DataInputStream dataInputStream;
     private DataOutputStream dataOutputStream;
@@ -76,9 +76,11 @@ class ProxyWorker implements Runnable{
                 case "update" :
                     operationUpdate(msg);
                     break;
+                case "error" : case "error:" :
+                    break;
                 default:
                     //Discard messages that are not recognized as part of the protocol
-                    sendUTF("error:incorrect format");
+                    sendUTF("error: incorrect format");
                     break;
             }
         }
@@ -94,7 +96,7 @@ class ProxyWorker implements Runnable{
     }
 
     private void operationDeliver(String msg){
-        msgs.add(msg);
+        msgs.add(msg, this);
     }
 
     /**
