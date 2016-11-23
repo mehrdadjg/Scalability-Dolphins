@@ -37,7 +37,6 @@ public class ReplicaReceiver implements Runnable{
 
             isRunning = true;
             while (isRunning){
-                //TODO create replica worker to allow multiple recoveries at the same time
                 try{
                     SocketStreamContainer socketStreamContainer = new SocketStreamContainer(serverSocket.accept());
                     executorService.submit(new ReplicaReceiverWorker(socketStreamContainer,fileHandler));

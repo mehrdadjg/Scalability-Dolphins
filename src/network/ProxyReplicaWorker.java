@@ -43,9 +43,8 @@ class ProxyReplicaWorker extends ProxyWorker {
     void receiveMessage(String msg) throws IOException {
         startTimer();
 
-        //TODO replace print statements with logging framework
         if (!msg.startsWith("ping")) {
-            System.out.println("Incoming Message from " + socket.getInetAddress() + ":" + socket.getPort() + " > " + msg);
+            System.out.println("Incoming Message from " + io.socket.getInetAddress() + ":" + io.socket.getPort() + " > " + msg);
         }
 
         switch (msg.split(" ")[0]) {

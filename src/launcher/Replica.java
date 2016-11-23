@@ -17,7 +17,6 @@ public class Replica {
 	private static int recoveryPort = Resources.RECOVERYPORT;
 
     public static void main(String[] args){
-        //TODO check valid ip format with regex "\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}"
         if (args.length > 0){
             ip = args[0];
 			if (args.length > 1){

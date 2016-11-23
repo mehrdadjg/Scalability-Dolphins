@@ -4,13 +4,14 @@ import java.io.IOException;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.Vector;
+import java.util.stream.Collectors;
 
 /**
  * INCOMPLETE
  */
 class GroupManager<E extends ProxyWorker>{
-    private Vector<E> workers = new Vector<E>();
-    static int cleanupInterval = 1000;
+    private Vector<E> workers = new Vector<>();
+    private static int cleanupInterval = 1000;
 
     GroupManager(){
         new Timer(true).schedule(new TimerTask() {
@@ -22,17 +23,9 @@ class GroupManager<E extends ProxyWorker>{
     }
 
     private void cleanupDeadWorkers(){
-        Vector<E> deadWorkers= new Vector<>();
+        Vector<E> deadWorkers= workers.stream().filter(ProxyWorker::isShutdown).collect(Collectors.toCollection(Vector::new));
 
-        for (E worker : workers){
-            if (worker.isShutdown()){
-                deadWorkers.add(worker);
-            }
-        }
-
-        for(E worker : deadWorkers){
-            remove(worker);
-        }
+        deadWorkers.forEach(this::remove);
     }
 
     void add(E worker){
@@ -72,11 +65,11 @@ class GroupManager<E extends ProxyWorker>{
         return  replicaList.replaceFirst(",","") + "]";
     }
 
-    public boolean replicasOnline() {
+    boolean replicasOnline() {
         return (workers.size() > 0);
     }
 
-    public E firstElement() {
+    E firstElement() {
         return workers.firstElement();
     }
 }

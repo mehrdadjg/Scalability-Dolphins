@@ -7,7 +7,6 @@ import util.TimeoutTimer;
 
 import java.io.IOException;
 import java.net.Socket;
-import java.util.regex.Pattern;
 
 /**
  * Helps a client or replica catch up after connecting

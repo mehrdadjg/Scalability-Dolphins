@@ -19,7 +19,6 @@ public class ProxyMain implements Runnable{
     private int replicaPort;
     private boolean isRunning;
     private BlockingQueue msgs = new BlockingQueue();
-    private boolean systemOffline = false;
     private GroupManager<ProxyWorker> clientGroupManager = new GroupManager<>();
     private GroupManager<ProxyReplicaWorker> replicaGroupManager = new GroupManager<>();
     private RecoveryManager recoveryManager = new RecoveryManager(replicaGroupManager);
@@ -64,16 +63,6 @@ public class ProxyMain implements Runnable{
                     //s.printStackTrace();              //suppress timeout exceptions when no connection requests occur
                 }
 
-                //TODO Enable once issue #24 is fixed
-                //If no replicas are available, respond to all client updates with error message
-                /*
-                if (replicas.isEmpty()){
-                    systemOffline();
-                } else {
-                    systemOnline();
-                }
-                */
-
                 //read all available messages
                 while (msgs.available()){
                     broadcast(msgs.retrieve());
@@ -116,29 +105,4 @@ public class ProxyMain implements Runnable{
             }
         }
     }
-
-    /**
-     * Sets a flag to disable workers from accepting any new updates
-     */
-    /*private void systemOffline() {
-        if (!systemOffline){
-            for (ProxyWorker p : clients){
-                p.setOffline(true);
-            }
-            systemOffline = true;
-        }
-    }*/
-
-    /**
-     * Disables a flag and allows workers to continue normal operation
-     */
-    /*private void systemOnline() {
-        if (systemOffline){
-            for (ProxyWorker p : clients){
-                p.setOffline(false);
-            }
-            systemOffline = false;
-        }
-    }*/
-
 }
