@@ -140,13 +140,13 @@ public class ReplicaMain implements Runnable{
         //create connections to all of the IP addresses
         Vector<SocketStreamContainer> replicas = new Vector<>();
         for (String s : replicaListString){
-            if (s.compareTo(InetAddress.getLocalHost().getHostAddress()) == 0){
-                continue;
-            }
-            try {
-                replicas.add(new SocketStreamContainer(new Socket(s.split(":")[0],Resources.RECOVERYPORT)));
-            } catch (IOException e){
-                //e.printStackTrace();
+            if ((s.compareTo(InetAddress.getLocalHost().getHostAddress()) != 0) && (s.length() > 0)){
+                System.out.println("true");
+                try {
+                    replicas.add(new SocketStreamContainer(new Socket(s.split(":")[0],Resources.RECOVERYPORT)));
+                } catch (IOException e){
+                    //e.printStackTrace();
+                }
             }
         }
 
