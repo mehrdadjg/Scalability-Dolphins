@@ -38,7 +38,8 @@ public class ReplicaReceiver implements Runnable{
             isRunning = true;
             while (isRunning){
                 //TODO create replica worker to allow multiple recoveries at the same time
-                try(SocketStreamContainer socketStreamContainer = new SocketStreamContainer(serverSocket.accept())){
+                try{
+                    SocketStreamContainer socketStreamContainer = new SocketStreamContainer(serverSocket.accept());
                     executorService.submit(new ReplicaReceiverWorker(socketStreamContainer,fileHandler));
                     System.out.println("Accepted new recoverer");
 
@@ -63,10 +64,10 @@ public class ReplicaReceiver implements Runnable{
 }
 
 class ReplicaReceiverWorker implements Runnable{
-    int timeout = 1000;
-    SocketStreamContainer recoverer;
-    FileHandler fileHandler;
-    TimeoutTimer timer = new TimeoutTimer();
+    private int timeout = 1000;
+    private SocketStreamContainer recoverer;
+    private FileHandler fileHandler;
+    private TimeoutTimer timer = new TimeoutTimer();
 
     public ReplicaReceiverWorker(SocketStreamContainer recoverer, FileHandler fileHandler){
         this.recoverer = recoverer;
