@@ -7,9 +7,12 @@ import util.SocketStreamContainer;
 import util.TimeoutTimer;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.Arrays;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.Vector;
 import java.util.regex.Pattern;
 
@@ -23,7 +26,8 @@ public class ReplicaMain implements Runnable{
     private FileHandler fileHandler = new FileHandler("file.txt");
     private ReplicaReceiver replicaReceiver;
     private int pingInterval = 1500;
-    private TimeoutTimer timeoutTimer = new TimeoutTimer();
+    private Timer timeoutTimer = new Timer(true);
+    SocketStreamContainer socketStreamContainer;
 
     public ReplicaMain(String ip, int port, int recoveryPort) throws IOException {
         this.proxyIp = ip;
@@ -40,13 +44,14 @@ public class ReplicaMain implements Runnable{
         new Thread(replicaReceiver).start();
         while (true) {
 
-            try (SocketStreamContainer socketStreamContainer = new SocketStreamContainer(new Socket(proxyIp, proxyPort))) {
+            try{
+                socketStreamContainer = new SocketStreamContainer(new Socket(proxyIp, proxyPort));
+                startTimer();
                 System.out.println("Connected to proxy");
 
                 //retrieve file contents
                 requestUpdates(socketStreamContainer);
 
-                timeoutTimer.startTimer(pingInterval);
                 isRunning = true;
                 while (isRunning) {
                     //readUTF() blocks until success, so we must check before calling it to avoid waiting if a packet isnt ready
@@ -76,9 +81,6 @@ public class ReplicaMain implements Runnable{
                                 break;
                         }
                     }
-                    if (timeoutTimer.isTimeoutFlag()) {
-                        sendUTF("ping", socketStreamContainer);
-                    }
                 }
                 break;
             } catch (UnknownHostException e) {
@@ -89,13 +91,33 @@ public class ReplicaMain implements Runnable{
                 System.out.println("Disconnected from proxy. attempting reconnect");
                 shutdown();
                 //e.printStackTrace();
+            } finally {
+                socketStreamContainer.close();
             }
         }
         fileHandler.close();
     }
 
+
+    private void startTimer(){
+        timeoutTimer.cancel();
+        timeoutTimer = new Timer(true);
+        timeoutTimer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                timeoutTimer.cancel();
+                try {
+                    sendUTF("ping", socketStreamContainer);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }, pingInterval, pingInterval);
+    }
+
+
     private void sendUTF(String msg, SocketStreamContainer socketStreamContainer) throws IOException{
-        timeoutTimer.startTimer(pingInterval);
+        startTimer();
         socketStreamContainer.dataOutputStream.writeUTF(msg);
         socketStreamContainer.dataOutputStream.flush();
     }
@@ -118,6 +140,9 @@ public class ReplicaMain implements Runnable{
         //create connections to all of the IP addresses
         Vector<SocketStreamContainer> replicas = new Vector<>();
         for (String s : replicaListString){
+            if (s.compareTo(InetAddress.getLocalHost().getHostAddress()) == 0){
+                continue;
+            }
             try {
                 replicas.add(new SocketStreamContainer(new Socket(s.split(":")[0],Resources.RECOVERYPORT)));
             } catch (IOException e){
