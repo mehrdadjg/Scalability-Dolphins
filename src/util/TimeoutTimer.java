@@ -16,7 +16,7 @@ public class TimeoutTimer {
      */
     public void startTimer(int timeout){
         reset();
-        timer = new Timer();
+        timer = new Timer(true);
         timer.schedule(new TimerTask() {
             @Override
             public void run() {

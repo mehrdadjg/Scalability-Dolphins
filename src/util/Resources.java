@@ -4,9 +4,9 @@ package util;
  *
  */
 public abstract class Resources {
-    public static final int CLIENTPORT = 22;
-    public static final int REPLICAPORT = 21;
-    public static final int RECOVERYPORT = 880;
+    public static final int CLIENTPORT = 2228;
+    public static final int REPLICAPORT = 2229;
+    public static final int RECOVERYPORT = 2227;
     
     /**
      * The time between reconnect attempts in the client.

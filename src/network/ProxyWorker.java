@@ -1,10 +1,8 @@
 package network;
 
 import util.BlockingQueue;
-import util.TimeoutTimer;
+import util.SocketStreamContainer;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.Socket;
@@ -15,16 +13,11 @@ import static java.lang.Thread.yield;
 /**
  * A threaded worker process to handle communications to and from a single client
  */
-class ProxyWorker implements Runnable{
-    private Socket socket;
-    private DataInputStream dataInputStream;
-    private DataOutputStream dataOutputStream;
-    private boolean isRunning;
+public class ProxyWorker implements Runnable{
+    protected SocketStreamContainer io;
+    private boolean isRunning = true;
     private BlockingQueue msgs;
     private RecoveryManager recoveryManager;
-    private volatile boolean offline = false;
-    TimeoutTimer timeoutTimer = new TimeoutTimer();
-    int timeout = 3000;
 
     /**
      *
@@ -33,69 +26,52 @@ class ProxyWorker implements Runnable{
      * @throws IOException If the the socket is unable to produce input and/or output streams
      */
     ProxyWorker(Socket socket, BlockingQueue msgs, RecoveryManager recoveryManager) throws IOException {
-        this.socket = socket;
+        this.io = new SocketStreamContainer(socket);
         this.msgs = msgs;
         this.recoveryManager = recoveryManager;
-        dataOutputStream = new DataOutputStream(socket.getOutputStream());
-        dataInputStream = new DataInputStream(socket.getInputStream());
     }
 
     @Override
     public void run() {
-        //TODO determine if a client has disconnected and terminate thread
         try{
-
-            isRunning = true;
             while (isRunning){
                 //readUTF() blocks until success, so we must check before calling it to avoid waiting if a packet isnt ready
-                if (dataInputStream.available() > 0){
-                    timeoutTimer.startTimer(timeout);
-                    String msg = dataInputStream.readUTF();
-
-                    //TODO replace print statements with logging framework
-                    if (!msg.startsWith("ping")){
-                        System.out.println("Incoming Message from " + socket.getInetAddress() + ":" + socket.getPort() + " > " +  msg);
-                    }
-
-                    if (offline){
-                        //System offline
-                        sendUTF("error: system offline");
-                    } else
-                    {
-                        switch (msg.split(" ")[0]){
-                            case "add"  : case "delete" :
-                                //add the received message to the queue for the server to broadcast later
-                                operationDeliver(msg);
-                                break;
-                            case "update" :
-                                operationUpdate(msg);
-                                break;
-                            case "ping" :
-                                break;
-                            default:
-                                //Discard messages that are not recognized as part of the protocol
-                                sendUTF("error:incorrect format");
-                                break;
-                        }
-                    }
-                }
-                if (timeoutTimer.isTimeoutFlag()){
-                    //TODO Enable this block to disconnect timed out clients
-                    //shutdown();
-                    //System.out.println("Client timed out");
+                if (io.dataInputStream.available() > 0){
+                    receiveMessage(io.dataInputStream.readUTF());
                 }
                 yield();
             }
 
             //release the resources before the thread terminates
-            dataInputStream.close();
-            dataOutputStream.close();
-            socket.close();
+            io.close();
         } catch (IOException e) {
-            e.printStackTrace();
+            shutdown();
+            //e.printStackTrace();
         }
     }
 
+    void receiveMessage(String msg) throws IOException{
+        if (!msg.startsWith("ping")) {
+            System.out.println("Incoming Message from " + io.socket.getInetAddress() + ":" + io.socket.getPort() + " > " + msg);
+        }
+
+        switch (msg.split(" ")[0]){
+            case "add"  : case "delete" :
+                //add the received message to the queue for the server to broadcast later
+                operationDeliver(msg);
+                break;
+            case "update" :
+                operationUpdate(msg);
+                break;
+            case "error" : case "error:" :
+                break;
+            default:
+                //Discard messages that are not recognized as part of the protocol
+                sendUTF("error: incorrect format");
+                break;
+        }
+
+    }
 
     /**
      * Retrieves updates with a TN of <TN> or higher from any available replica and sends them to the client
@@ -107,14 +83,13 @@ class ProxyWorker implements Runnable{
     }
 
     private void operationDeliver(String msg){
-        msgs.add(msg);
+        msgs.add(msg, this);
     }
 
     /**
      * clears the isRunning flag which allows the thread to terminate it's loop and clean up
      */
     void shutdown(){
-        timeoutTimer.setTimeoutFlag();
         isRunning = false;
     }
 
@@ -126,25 +101,27 @@ class ProxyWorker implements Runnable{
     void sendUTF(String msg)throws IOException{
         System.out.println("Sending to >" + toString());
         System.out.println("\t Message > " + msg);
-        dataOutputStream.writeUTF(msg);
-        dataOutputStream.flush();
+        io.dataOutputStream.writeUTF(msg);
+        io.dataOutputStream.flush();
         System.out.println("\t sent");
     }
 
     @Override
     public String toString() {
-        String ip = socket.getRemoteSocketAddress().toString().replaceFirst("/","").split(":")[0];
+        String ip = io.socket.getRemoteSocketAddress().toString().replaceFirst("/","").split(":")[0];
         String loopback = InetAddress.getLoopbackAddress().toString().split("/")[1];
         try {
             if (ip.compareTo(loopback) == 0){
-                return InetAddress.getLocalHost().toString().split("/")[1];
+                return InetAddress.getLocalHost().getHostAddress();
             }
         } catch (UnknownHostException e) {
+            //Unlikely to occur unless own IP is unknown to the OS
+            //e.printStackTrace();
         }
         return ip;
     }
 
-    void setOffline(boolean val){
-        offline = val;
+    boolean isShutdown() {
+        return !isRunning;
     }
 }

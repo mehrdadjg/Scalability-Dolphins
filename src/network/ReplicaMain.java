@@ -1,17 +1,20 @@
 package network;
 
 
-import java.io.IOException;
-import java.net.Socket;
-import java.net.UnknownHostException;
-import java.util.Arrays;
-import java.util.Vector;
-import java.util.regex.Pattern;
-
 import handlers.FileHandler;
 import util.Resources;
 import util.SocketStreamContainer;
 import util.TimeoutTimer;
+
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.Socket;
+import java.net.UnknownHostException;
+import java.util.Arrays;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.Vector;
+import java.util.regex.Pattern;
 
 /**
  * Handles the incoming and outgoing connections
@@ -21,13 +24,16 @@ public class ReplicaMain implements Runnable{
     private int proxyPort;
     private boolean isRunning;
     private FileHandler fileHandler = new FileHandler("file.txt");
-    private ReplicaReceiver replicaReceiver = new ReplicaReceiver(fileHandler, Resources.RECOVERYPORT);
+    private ReplicaReceiver replicaReceiver;
     private int pingInterval = 1500;
-    private TimeoutTimer timeoutTimer = new TimeoutTimer();
+    private Timer timeoutTimer = new Timer(true);
+    private SocketStreamContainer socketStreamContainer;
+    private boolean proxyConnected;
 
-    public ReplicaMain(String ip, int port) throws IOException {
+    public ReplicaMain(String ip, int port, int recoveryPort) throws IOException {
         this.proxyIp = ip;
         this.proxyPort = port;
+        this.replicaReceiver = new ReplicaReceiver(fileHandler, recoveryPort);
     }
 
     /**
@@ -37,22 +43,24 @@ public class ReplicaMain implements Runnable{
     public void run() {
         //Launch the receiver thread which will service incoming update requests
         new Thread(replicaReceiver).start();
-        while (true) {
+        isRunning = true;
+        while (isRunning) {
 
-            try (SocketStreamContainer socketStreamContainer = new SocketStreamContainer(new Socket(proxyIp, proxyPort))) {
+            try{
+                socketStreamContainer = new SocketStreamContainer(new Socket(proxyIp, proxyPort));
+                proxyConnected = true;
+                startTimer();
                 System.out.println("Connected to proxy");
 
                 //retrieve file contents
                 requestUpdates(socketStreamContainer);
 
-                timeoutTimer.startTimer(pingInterval);
-                isRunning = true;
+
                 while (isRunning) {
                     //readUTF() blocks until success, so we must check before calling it to avoid waiting if a packet isnt ready
                     if (socketStreamContainer.dataInputStream.available() > 0) {
                         String msg = socketStreamContainer.dataInputStream.readUTF();
 
-                        //TODO replace print statements with logging framework
                         System.out.println("Incoming Message from proxy > " + msg);
 
                         switch (msg.split(" ")[0]) {
@@ -75,8 +83,8 @@ public class ReplicaMain implements Runnable{
                                 break;
                         }
                     }
-                    if (timeoutTimer.isTimeoutFlag()) {
-                        sendUTF("ping", socketStreamContainer);
+                    if (!proxyConnected){
+                        throw new IOException("proxy disconnected");
                     }
                 }
                 break;
@@ -85,17 +93,36 @@ public class ReplicaMain implements Runnable{
                 e.printStackTrace();
             } catch (IOException e) {
                 //Proxy is offline.
-                //TODO attempt reconnect
                 System.out.println("Disconnected from proxy. attempting reconnect");
-                shutdown();
                 //e.printStackTrace();
+            } finally {
+                socketStreamContainer.close();
             }
         }
         fileHandler.close();
     }
 
+
+    private void startTimer(){
+        timeoutTimer.cancel();
+        timeoutTimer = new Timer(true);
+        timeoutTimer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                timeoutTimer.cancel();
+                try {
+                    sendUTF("ping", socketStreamContainer);
+                } catch (IOException e) {
+                    proxyConnected = false;
+                    //e.printStackTrace();
+                }
+            }
+        }, pingInterval, pingInterval);
+    }
+
+
     private void sendUTF(String msg, SocketStreamContainer socketStreamContainer) throws IOException{
-        timeoutTimer.startTimer(pingInterval);
+        startTimer();
         socketStreamContainer.dataOutputStream.writeUTF(msg);
         socketStreamContainer.dataOutputStream.flush();
     }
@@ -106,7 +133,6 @@ public class ReplicaMain implements Runnable{
      * @throws IOException if the streams are disconnected
      */
     private void requestUpdates(SocketStreamContainer proxy) throws IOException {
-        //TODO compare received messages to existing ones to avoid accidental duplication
 
         //send an update request
         proxy.dataOutputStream.writeUTF("update");
@@ -118,14 +144,14 @@ public class ReplicaMain implements Runnable{
         //create connections to all of the IP addresses
         Vector<SocketStreamContainer> replicas = new Vector<>();
         for (String s : replicaListString){
-            try {
-                replicas.add(new SocketStreamContainer(new Socket(s.split(":")[0],Resources.RECOVERYPORT)));
-            } catch (IOException e){
-                //e.printStackTrace();
+            if ((s.compareTo(InetAddress.getLocalHost().getHostAddress()) != 0) && (s.length() > 0)){
+                try {
+                    replicas.add(new SocketStreamContainer(new Socket(s.split(":")[0],Resources.RECOVERYPORT)));
+                } catch (IOException e){
+                    //e.printStackTrace();
+                }
             }
         }
-
-        Vector<SocketStreamContainer> deadConnections = new Vector<SocketStreamContainer>();
 
         //query all replicas for their TNs
         for (SocketStreamContainer s : replicas){
@@ -133,15 +159,9 @@ public class ReplicaMain implements Runnable{
                 s.dataOutputStream.writeUTF("query_tn");
                 s.dataOutputStream.flush();
             } catch (IOException e){
-                deadConnections.add(s);
+                //e.printStackTrace();
             }
         }
-
-        for (SocketStreamContainer s : deadConnections){
-            s.close();
-            replicas.remove(s);
-        }
-        deadConnections.removeAllElements();
 
         //wait for reply
         TimeoutTimer timer = new TimeoutTimer();
@@ -164,15 +184,9 @@ public class ReplicaMain implements Runnable{
                     throw new IOException("Replica timeout");
                 }
             } catch (IOException e){
-                deadConnections.add(s);
+                //e.printStackTrace();
             }
         }
-
-        for (SocketStreamContainer s : deadConnections){
-            s.close();
-            replicas.remove(s);
-        }
-        deadConnections.removeAllElements();
 
         //request transformations from higher replica
         if (master != null){
@@ -194,6 +208,10 @@ public class ReplicaMain implements Runnable{
                 master.dataOutputStream.writeUTF("error:incorrect format");
                 master.dataOutputStream.flush();
             }
+        }
+
+        for (SocketStreamContainer s : replicas){
+            s.close();
         }
 
         System.out.println("finished updating");

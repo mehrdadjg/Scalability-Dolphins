@@ -1,13 +1,13 @@
 package network;
 
 import util.BlockingQueue;
+import util.MessageInfo;
 
 import java.io.*;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
-import java.util.Vector;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -18,11 +18,10 @@ public class ProxyMain implements Runnable{
     private int clientPort;
     private int replicaPort;
     private boolean isRunning;
-    private Vector<ProxyWorker> clients = new Vector<>();
-    private Vector<ProxyReplicaWorker> replicas = new Vector<>();
     private BlockingQueue msgs = new BlockingQueue();
-    private RecoveryManager recoveryManager = new RecoveryManager(replicas);
-    private boolean systemOffline = false;
+    private GroupManager<ProxyWorker> clientGroupManager = new GroupManager<>();
+    private GroupManager<ProxyReplicaWorker> replicaGroupManager = new GroupManager<>();
+    private RecoveryManager recoveryManager = new RecoveryManager(replicaGroupManager);
 
     public ProxyMain(int clientPort, int replicaPort){
         this.clientPort = clientPort;
@@ -37,7 +36,9 @@ public class ProxyMain implements Runnable{
         ExecutorService executorService = Executors.newCachedThreadPool();
 
         try(ServerSocket clientSocket = new ServerSocket(clientPort); ServerSocket replicaSocket = new ServerSocket(replicaPort)) {
-            System.out.println("Server started. local address is: " + InetAddress.getLocalHost() + ":" + clientSocket.getLocalPort());
+            System.out.println("Server started. local address is: " + InetAddress.getLocalHost().getHostAddress());
+            System.out.println("Client port is:  " + clientSocket.getLocalPort());
+            System.out.println("Replica port is: " + replicaSocket.getLocalPort());
             clientSocket.setSoTimeout(10); //set a socket timeout so that accept() does not block forever and lets us exit the loop without interrupting normal execution
             replicaSocket.setSoTimeout(10);
             isRunning = true;
@@ -46,7 +47,7 @@ public class ProxyMain implements Runnable{
                     Socket socket = clientSocket.accept();
                     System.out.println("Accepted new client at:" + socket.getInetAddress() + ":" + socket.getPort());
                     ProxyWorker proxyWorker = new ProxyWorker(socket, msgs, recoveryManager);
-                    clients.addElement(proxyWorker);
+                    clientGroupManager.add(proxyWorker);
                     executorService.submit(proxyWorker);
                 } catch (SocketTimeoutException s){
                     //s.printStackTrace();              //suppress timeout exceptions when no connection requests occur
@@ -55,22 +56,12 @@ public class ProxyMain implements Runnable{
                 try{
                     Socket socket = replicaSocket.accept();
                     System.out.println("Accepted new replica at: " + socket.getInetAddress() + ":" + socket.getPort());
-                    ProxyReplicaWorker replicaWorker = new ProxyReplicaWorker(socket, msgs,recoveryManager, replicas);
-                    replicas.addElement(replicaWorker);
+                    ProxyReplicaWorker replicaWorker = new ProxyReplicaWorker(socket, msgs,recoveryManager, replicaGroupManager);
+                    replicaGroupManager.add(replicaWorker);
                     executorService.submit(replicaWorker);
                 } catch (SocketTimeoutException s){
                     //s.printStackTrace();              //suppress timeout exceptions when no connection requests occur
                 }
-
-                //TODO Enable once issue #24 is fixed
-                //If no replicas are available, respond to all client updates with error message
-                /*
-                if (replicas.isEmpty()){
-                    systemOffline();
-                } else {
-                    systemOnline();
-                }
-                */
 
                 //read all available messages
                 while (msgs.available()){
@@ -93,77 +84,25 @@ public class ProxyMain implements Runnable{
      */
     public void shutdown(){
         isRunning = false;
-        clients.forEach(ProxyWorker::shutdown);
-        replicas.forEach(ProxyReplicaWorker::shutdown);
+        replicaGroupManager.shutdown();
+        clientGroupManager.shutdown();
     }
 
     /**
      * broadcasts a string to all clients
      * @param msg the message to be broadcast
      */
-    private void broadcast(String msg){
-        Vector<ProxyWorker> deadConnections = new Vector<>();
-        //TODO actively check for disconnects, rather than only when sending
-        for (ProxyReplicaWorker p : replicas){
-            try{
-                p.sendUTF(msg);
-                System.out.println("sent message to >" + p);
-            } catch (IOException e) {
-                //if sending has failed, socket is closed
-                System.out.println("replica disconnected");
-                deadConnections.add(p);
-                //e.printStackTrace();
-            }
+    private void broadcast(MessageInfo msg){
+        replicaGroupManager.broadcast(msg.update);
+        if (replicaGroupManager.replicasOnline()){
+            clientGroupManager.broadcast(msg.update);
         }
-
-        for (ProxyWorker p : deadConnections){
-            p.shutdown();
-            replicas.remove(p);
-        }
-
-        deadConnections.removeAllElements();
-
-        for (ProxyWorker p : clients){
+        else {
             try {
-                p.sendUTF(msg);
-                System.out.println("sent message to >" + p);
+                msg.sender.sendUTF("error: system offline");
             } catch (IOException e) {
-                //if sending has failed, client has likely disconnected
-                System.out.println("client disconnected");
-                deadConnections.add(p);
-                //e.printStackTrace();
+                msg.sender.shutdown();
             }
-        }
-
-        for (ProxyWorker p : deadConnections){
-            p.shutdown();
-            clients.remove(p);
-        }
-
-        deadConnections.removeAllElements();
-    }
-
-    /**
-     * Sets a flag to disable workers from accepting any new updates
-     */
-    private void systemOffline() {
-        if (!systemOffline){
-            for (ProxyWorker p : clients){
-                p.setOffline(true);
-            }
-            systemOffline = true;
-        }
-    }
-
-    /**
-     * Disables a flag and allows workers to continue normal operation
-     */
-    private void systemOnline() {
-        if (systemOffline){
-            for (ProxyWorker p : clients){
-                p.setOffline(false);
-            }
-            systemOffline = false;
         }
     }
 }

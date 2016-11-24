@@ -9,7 +9,7 @@ import java.net.Socket;
  * An Autocloseable container for a socket object and it's associated DataInputStream and DataOutputStream
  */
 public class SocketStreamContainer implements AutoCloseable {
-    Socket socket;
+    public Socket socket;
     public DataInputStream dataInputStream;
     public DataOutputStream dataOutputStream;
 
