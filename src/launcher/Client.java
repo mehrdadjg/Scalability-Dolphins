@@ -137,7 +137,7 @@ public class Client{
     }
     
     private static void initialize() throws IOException {
-    	dataOutputStream.writeUTF("update 0");
+    	dataOutputStream.writeUTF("update " + TN);
 
         //recieve and format the response
 		String reply = dataInputStream.readUTF();
