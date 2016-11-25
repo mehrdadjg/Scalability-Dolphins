@@ -33,7 +33,7 @@ public class ReplicaMain implements Runnable{
     public ReplicaMain(String ip, int port, int recoveryPort) throws IOException {
         this.proxyIp = ip;
         this.proxyPort = port;
-        this.replicaReceiver = new ReplicaReceiver(fileHandler, recoveryPort);
+        this.replicaReceiver = new ReplicaReceiver(this, fileHandler, recoveryPort);
     }
 
     /**
@@ -195,26 +195,28 @@ public class ReplicaMain implements Runnable{
             //recieve and format the response
             String reply = master.dataInputStream.readUTF();
             if (reply.startsWith("bundle ")){
-                reply = reply.substring("bundle ".length());
-                String[] msgs = Pattern.compile("\\[|,|\\]").split(reply);
-
-                //store nonempty values from the response array
-                for (int i = 1; i < msgs.length; i++){
-                    if (msgs[i].length() > 0){
-                        fileHandler.append(msgs[i]);
-                    }
-                }
+                operationBundle(reply);
             } else {
                 master.dataOutputStream.writeUTF("error:incorrect format");
                 master.dataOutputStream.flush();
             }
         }
 
-        for (SocketStreamContainer s : replicas){
-            s.close();
-        }
+        replicas.forEach(SocketStreamContainer::close);
 
         System.out.println("finished updating");
+    }
+
+    void operationBundle(String msg) throws IOException{
+            msg = msg.substring("bundle ".length());
+            String[] msgs = Pattern.compile("\\[|,|\\]").split(msg);
+
+            //store nonempty values from the response array
+            for (int i = 1; i < msgs.length; i++){
+                if (msgs[i].length() > 0){
+                    fileHandler.append(msgs[i]);
+                }
+            }
     }
 
     public void shutdown() {

@@ -14,17 +14,19 @@ import java.util.concurrent.Executors;
 /**
  * A server socket handler to allow the replica to listen on a different channel for incoming update requests and queries
  */
-public class ReplicaReceiver implements Runnable{
+class ReplicaReceiver implements Runnable{
     private int port;
     private boolean isRunning;
     private FileHandler fileHandler;
+    private ReplicaMain replicaMain;
 
     /**
      * Initializes a replica receiver with a given fileHandler and port number to use for the ServerSocket
      * @param fileHandler The handler for the file that this receiver will be providing
      * @param port The port number to listen to for incoming connection requests
      */
-    public ReplicaReceiver(FileHandler fileHandler, int port){
+    ReplicaReceiver(ReplicaMain replicaMain, FileHandler fileHandler, int port){
+        this.replicaMain = replicaMain;
         this.fileHandler = fileHandler;
         this.port = port;
     }
@@ -39,7 +41,7 @@ public class ReplicaReceiver implements Runnable{
             while (isRunning){
                 try{
                     SocketStreamContainer socketStreamContainer = new SocketStreamContainer(serverSocket.accept());
-                    executorService.submit(new ReplicaReceiverWorker(socketStreamContainer,fileHandler));
+                    executorService.submit(new ReplicaReceiverWorker(socketStreamContainer));
                     System.out.println("Accepted new recoverer");
 
                 } catch (SocketTimeoutException s){
@@ -57,54 +59,55 @@ public class ReplicaReceiver implements Runnable{
     /**
      * clears the isRunning flag which allows the thread to terminate it's loop and clean up
      */
-    public void shutdown(){
+    void shutdown(){
         isRunning = false;
     }
-}
 
-class ReplicaReceiverWorker implements Runnable{
-    private int timeout = 1000;
-    private SocketStreamContainer recoverer;
-    private FileHandler fileHandler;
-    private TimeoutTimer timer = new TimeoutTimer();
+    private class ReplicaReceiverWorker implements Runnable{
+        private SocketStreamContainer recoverer;
+        private TimeoutTimer timer = new TimeoutTimer();
+        private int timeout = 1000;
 
-    public ReplicaReceiverWorker(SocketStreamContainer recoverer, FileHandler fileHandler){
-        this.recoverer = recoverer;
-        this.fileHandler = fileHandler;
-    }
+        ReplicaReceiverWorker(SocketStreamContainer recoverer){
+            this.recoverer = recoverer;
+        }
 
-    @Override
-    public void run() {
-        timer.reset();  //reset the timer in case it is already running
-        do{
-            //make sure that there are bytes to be read before attempting to read to avoid being blocked
-            try {
-                if (recoverer.dataInputStream.available() > 0){
-                    String msg = recoverer.dataInputStream.readUTF();
+        @Override
+        public void run() {
+            timer.reset();  //reset the timer in case it is already running
+            do{
+                //make sure that there are bytes to be read before attempting to read to avoid being blocked
+                try {
+                    if (recoverer.dataInputStream.available() > 0){
+                        String msg = recoverer.dataInputStream.readUTF();
 
-                    switch (msg.split(" ")[0]) {
-                        case "query_tn" :
-                            //reply with the current TN
-                            recoverer.dataOutputStream.writeUTF("tn " + (fileHandler.read().length));
-                            recoverer.dataOutputStream.flush();
-                            break;
-                        case "transformations" :
-                            //prepare yourself
-                            recoverer.dataOutputStream.writeUTF("bundle " + Arrays.toString(Arrays.copyOfRange(fileHandler.read(), Integer.parseInt(msg.split(" ")[1]), Integer.parseInt(msg.split(" ")[2]))));
-                            recoverer.dataOutputStream.flush();
-                            break;
-                        default:
-                            //Discard messages that are not recognized as part of the protocol
-                            recoverer.dataOutputStream.writeUTF("error:incorrect format");
-                            recoverer.dataOutputStream.flush();
-                            break;
+                        switch (msg.split(" ")[0]) {
+                            case "query_tn" :
+                                //reply with the current TN
+                                recoverer.dataOutputStream.writeUTF("tn " + (fileHandler.read().length));
+                                recoverer.dataOutputStream.flush();
+                                break;
+                            case "transformations" :
+                                //prepare yourself
+                                recoverer.dataOutputStream.writeUTF("bundle " + Arrays.toString(Arrays.copyOfRange(fileHandler.read(), Integer.parseInt(msg.split(" ")[1]), Integer.parseInt(msg.split(" ")[2]))));
+                                recoverer.dataOutputStream.flush();
+                                break;
+                            case "bundle" :
+                                replicaMain.operationBundle(msg);
+                            default:
+                                //Discard messages that are not recognized as part of the protocol
+                                recoverer.dataOutputStream.writeUTF("error:incorrect format");
+                                recoverer.dataOutputStream.flush();
+                                break;
+                        }
+                        timer.startTimer(timeout); //start the timer again every time a message is received
                     }
-                    timer.startTimer(timeout); //start the timer again every time a message is received
+                } catch (IOException e) {
+                    //e.printStackTrace();
                 }
-            } catch (IOException e) {
-                //e.printStackTrace();
-            }
-        } while (!timer.isTimeoutFlag());   //if no messages are received, then time out and close the connection
+            } while (!timer.isTimeoutFlag());   //if no messages are received, then time out and close the connection
 
+        }
     }
 }
+
