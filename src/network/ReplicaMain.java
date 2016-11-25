@@ -74,8 +74,7 @@ public class ReplicaMain implements Runnable{
                                 sendUTF("tn " + (fileHandler.read().length), socketStreamContainer);
                                 break;
                             case "transformations":
-                                //prepare yourself
-                                sendUTF(Arrays.toString(Arrays.copyOfRange(fileHandler.read(), Integer.parseInt(msg.split(" ")[1]), Integer.parseInt(msg.split(" ")[2]))), socketStreamContainer);
+                                operationTransformations(Integer.parseInt(msg.split(" ")[1]), Integer.parseInt(msg.split(" ")[2]), socketStreamContainer);
                                 break;
                             default:
                                 //Discard messages that are not recognized as part of the protocol
@@ -165,40 +164,32 @@ public class ReplicaMain implements Runnable{
 
         //wait for reply
         TimeoutTimer timer = new TimeoutTimer();
-        timer.startTimer(500);
+        timer.startTimer(1000);
         while (!timer.isTimeoutFlag()){Thread.yield();}
 
-        //Find the maximum
+        //Request any new updates from each replica
         int TNold = fileHandler.read().length;
-        int TNmax = -1;
-        SocketStreamContainer master = null;
         for (SocketStreamContainer s : replicas){
             try{
                 if (s.dataInputStream.available() > 0) {
-                    int TNcurrent = Integer.parseInt(s.dataInputStream.readUTF().split(" ")[1]);
-                    if (TNcurrent > TNmax && TNcurrent > TNold) {
-                        master = s;
-                        TNmax = TNcurrent;
+                    int TNcurrent = Integer.parseInt(s.dataInputStream.readUTF().split(" ")[1]);                        //Get their current TN
+
+                    if (TNcurrent > TNold) {                                                                            //If their TN is greater than own
+                        s.dataOutputStream.writeUTF("transformations " + TNold + " "+ TNcurrent);                           //Request the missing TNs
+                        s.dataOutputStream.flush();
+                        String reply = s.dataInputStream.readUTF();                                                         //Download the missing TNs
+                        if (reply.startsWith("bundle ")){                                                                   //Check formatting
+                            operationBundle(reply);                                                                         //Apply the downloads
+                            TNold = TNcurrent;
+                        }
+                    } else if (TNcurrent < TNold) {                                                                     //Otherwise, if their TN is less than own
+                        operationTransformations(TNcurrent, TNold, socketStreamContainer);                                  //Send the TNs they are missing
                     }
                 } else {
-                    throw new IOException("Replica timeout");
+                    throw new IOException("Replica timeout");                                                           //If the dataInputStream is empty, then they did not reply in time and are assumed disconnected
                 }
-            } catch (IOException e){
+            } catch (IOException e){                                                                                    //If they are thought to be disconnected, then skip them
                 //e.printStackTrace();
-            }
-        }
-
-        //request transformations from higher replica
-        if (master != null){
-            master.dataOutputStream.writeUTF("transformations " + TNold + " "+ TNmax);
-            master.dataOutputStream.flush();
-            //recieve and format the response
-            String reply = master.dataInputStream.readUTF();
-            if (reply.startsWith("bundle ")){
-                operationBundle(reply);
-            } else {
-                master.dataOutputStream.writeUTF("error:incorrect format");
-                master.dataOutputStream.flush();
             }
         }
 
@@ -217,6 +208,11 @@ public class ReplicaMain implements Runnable{
                     fileHandler.append(msgs[i]);
                 }
             }
+    }
+
+    private void operationTransformations(int beginIndex, int endIndex, SocketStreamContainer socketStreamContainer) throws IOException {
+        //prepare yourself
+        sendUTF(Arrays.toString(Arrays.copyOfRange(fileHandler.read(), beginIndex, endIndex)), socketStreamContainer);
     }
 
     public void shutdown() {
