@@ -27,6 +27,11 @@ public class ClientSender implements Runnable {
 			
 			if (line == null) {continue;}
 			
+			if(line.length() > 1) {
+				System.err.println("Input one character at a time. \"" + line + "\" ignored!");
+				continue;
+			}
+			
 			for(int k = 0; k < line.length(); k++) {
 				char c = line.charAt(k);
 				
