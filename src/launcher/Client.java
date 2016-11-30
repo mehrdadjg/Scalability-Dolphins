@@ -45,7 +45,7 @@ public class Client{
     private static Thread			receiverThread		= null;
     private static Thread			senderThread		= null;
     
-    public	static final boolean	debugging			= true;
+    public	static final boolean	debugging			= Resources.DEBUG;
     
     public	static final String		id					= Client.getSelfMAC() + new Random().nextInt();
     
