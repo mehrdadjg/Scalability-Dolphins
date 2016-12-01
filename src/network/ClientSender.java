@@ -26,36 +26,27 @@ public class ClientSender implements Runnable {
 			String line = scanner.nextLine();
 			
 			if (line == null) {continue;}
-			
-			if(line.length() > 1) {
-				System.err.println("Input one character at a time. \"" + line + "\" ignored!");
-				continue;
-			}
-			
-			for(int k = 0; k < line.length(); k++) {
-				char c = line.charAt(k);
 				
-				DocumentUpdate outgoingUpdate = 
-						new DocumentUpdate(c, Client.getMessage().length(), Client.getAndIncreaseTransformationNumber());
+			DocumentUpdate outgoingUpdate = 
+					new DocumentUpdate(line, Client.getMessage().length(), Client.getAndIncreaseTransformationNumber());
 				
-				Client.performOutgoingUpdate(outgoingUpdate);
+			Client.performOutgoingUpdate(outgoingUpdate);
 				
-				String outgoingUpdateString = outgoingUpdate.toString();
-				System.out.println("outgoing: " + outgoingUpdateString);
+			String outgoingUpdateString = outgoingUpdate.toString();
+			System.out.println("outgoing: " + outgoingUpdateString);
 				
-				Client.addUnapprovedUpdate(outgoingUpdate);
+			Client.addUnapprovedUpdate(outgoingUpdate);
 				
-				try {
-					dataOutputStream.writeUTF(outgoingUpdateString);
-					dataOutputStream.flush();
-				} catch (IOException e) {
-					System.err.println("ERROR IN CLIENT. Cannot write to the outgoing stream.");
-					if(Client.debugging) {
-						e.printStackTrace();
-					} else {
-						scanner.close();
-						return;
-					}
+			try {
+				dataOutputStream.writeUTF(outgoingUpdateString);
+				dataOutputStream.flush();
+			} catch (IOException e) {
+				System.err.println("ERROR IN CLIENT. Cannot write to the outgoing stream.");
+				if(Client.debugging) {
+					e.printStackTrace();
+				} else {
+					scanner.close();
+					return;
 				}
 			}
 				

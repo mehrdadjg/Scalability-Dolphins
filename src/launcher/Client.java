@@ -197,23 +197,23 @@ public class Client{
     	}
     	
     	if(position == Client.message.length()) {
-    		if(outgoingUpdate.getChar() == DocumentUpdate.BACKSPACE) {
+    		if(outgoingUpdate.getString().compareTo(String.valueOf(DocumentUpdate.BACKSPACE)) == 0) {
     			if(Client.message.length() > 0) {
     				Client.message = Client.message.substring(0, Client.message.length() - 1);
     			}
     		} else {
-    			Client.message = Client.message + outgoingUpdate.getChar();
+    			Client.message = Client.message + outgoingUpdate.getString();
     		}
     	} else if(position == 0) {
-    		if(outgoingUpdate.getChar() != DocumentUpdate.BACKSPACE) {
-    			Client.message = outgoingUpdate.getChar() + Client.message;
+    		if(outgoingUpdate.getString().compareTo(String.valueOf(DocumentUpdate.BACKSPACE)) != 0) {
+    			Client.message = outgoingUpdate.getString() + Client.message;
     		}
     	} else {	// The update is happening at an index in the middle
-    		if(outgoingUpdate.getChar() == DocumentUpdate.BACKSPACE) {
+    		if(outgoingUpdate.getString().compareTo(String.valueOf(DocumentUpdate.BACKSPACE)) == 0) {
     			Client.message = Client.message.substring(0, position) +
     					Client.message.substring(position + 1);
     		} else {
-    			Client.message = Client.message.substring(0, position) + outgoingUpdate.getChar() +
+    			Client.message = Client.message.substring(0, position) + outgoingUpdate.getString() +
     					Client.message.substring(position);
     		}
     	}
