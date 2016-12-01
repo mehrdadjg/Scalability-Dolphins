@@ -34,7 +34,7 @@ public class DocumentUpdate{
      * In case of a deletion this character must be set to
      * {@link PositionType#BACKSPACE}.
      */
-    char c									= 0;
+    String s								= "";
     
     /**
      * The ID of the client who initiated the update.
@@ -60,7 +60,25 @@ public class DocumentUpdate{
      * @param TN The transformation number of this update.
      */
     public DocumentUpdate(char newChar, int position, int TN) {
-    	this.c = newChar;
+    	this.s = String.valueOf(newChar);
+    	this.intendedPosition = position;
+    	this.transformationNumber = TN;
+
+    	this.actualPosition = -1;
+    	
+    	this.id = Client.id;
+	}
+    
+    /**
+     * Creates a new instance of document update.
+     * @param newString The string that we want to add. If the purpose of the
+     * update is to delete a character {@link PositionType#BACKSPACE} must be
+     * used.
+     * @param position The position that the update must affect.
+     * @param TN The transformation number of this update.
+     */
+    public DocumentUpdate(String newString, int position, int TN) {
+    	this.s = String.valueOf(newString);
     	this.intendedPosition = position;
     	this.transformationNumber = TN;
 
@@ -136,11 +154,11 @@ public class DocumentUpdate{
     }
     
     /**
-     * @return Returns the character that must be added. Or returns
+     * @return Returns the string that must be added. Or returns
      * {@link DocumentUpdate#BACKSPACE} for a deletion update.
      */
-    public char getChar() {
-    	return c;
+    public String getString() {
+    	return s;
     }
     
     /**
@@ -148,7 +166,7 @@ public class DocumentUpdate{
      * @return Returns true is the update is for a deletion, false otherwise.
      */
     public boolean isDeletion() {
-    	if (getChar() == DocumentUpdate.BACKSPACE) {
+    	if (getString().compareTo(String.valueOf(DocumentUpdate.BACKSPACE)) == 0) {
     		return true;
     	} else {
     		return false;
@@ -171,13 +189,13 @@ public class DocumentUpdate{
 	        	out.actualPosition			= Integer.parseInt(inputList[3]);
 	        	out.transformationNumber	= Integer.parseInt(inputList[4]);
 	        	out.id						= inputList[5];
-	        	out.c						= DocumentUpdate.BACKSPACE;
+	        	out.s						= String.valueOf(DocumentUpdate.BACKSPACE);
 	    	} else if(header.matches("add")) {
 	    		out.intendedPosition		= Integer.parseInt(inputList[2]);
 	        	out.actualPosition			= Integer.parseInt(inputList[3]);
 	        	out.transformationNumber	= Integer.parseInt(inputList[4]);
 	        	out.id						= inputList[5];
-	        	out.c						= (char) Integer.parseInt(inputList[6]);
+	        	out.s						= charList2str(inputList, 6);
 	    	} else {
 	    		return null;
 	    	}
@@ -208,9 +226,25 @@ public class DocumentUpdate{
     				String.valueOf(actualPosition) + " " +			// Actual Position
     				String.valueOf(transformationNumber) + " " +	// Transformation Number
     				id + " " +										// The MAC Address
-    				String.valueOf((int) c) + "\n";					// The Message
+    				str2charList(s) + "\n";					// The Message
     	}
     	return str;
+    }
+    
+    private String str2charList(String str) {
+    	String output = "";
+    	for(int i = 0; i < str.length(); i++) {
+    		output += ((int) str.charAt(i)) + " ";
+    	}
+    	return output.trim();
+    }
+    
+    private static String charList2str(String[] charList, int start) {
+    	String output = "";
+    	for(int i = start; i < charList.length; i++) {
+    		output += String.valueOf((char) Integer.parseInt(charList[i]));
+    	}
+    	return output;
     }
     
     @Override
@@ -222,7 +256,7 @@ public class DocumentUpdate{
     	if(!(other instanceof DocumentUpdate))
     		return false;
     	DocumentUpdate otherUpdate = (DocumentUpdate) other;
-    	if(otherUpdate.c ==this.c &&
+    	if(otherUpdate.s.compareTo(this.s) == 0 &&
     			otherUpdate.transformationNumber == this.transformationNumber &&
     			otherUpdate.intendedPosition == this.intendedPosition)
     		return true;

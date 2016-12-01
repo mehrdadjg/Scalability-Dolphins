@@ -52,7 +52,7 @@ public class ClientReceiver implements Runnable {
 			if(incomingUpdate == null) {
 				Logger.log("Incorrect protocol detected in the incoming stream. Packet dropped.", LogType.Error);
 				Logger.log("Incorrect input: " + input, LogType.Info);
-				Client.informProxy("error");
+//				Client.informProxy("error");
 				continue;
 			}
 			
