@@ -95,6 +95,8 @@ class ReplicaReceiver implements Runnable{
                                 break;
                             case "bundle" :
                                 replicaMain.operationBundle(msg);
+                            case "replace" :
+                                replicaMain.operationReplace(msg);
                             case "hash":
                                 operationHash(msg.split(" ")[1], Integer.parseInt(msg.split(" ")[2]), recoverer);
                                 break;

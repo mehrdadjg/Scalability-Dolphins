@@ -247,6 +247,19 @@ public class ReplicaMain implements Runnable{
                 }
             }
     }
+    void operationReplace(String msg) throws IOException{
+        fileHandler.purge();
+
+        msg = msg.substring("replace ".length());
+        String[] msgs = Pattern.compile("\\[|,|\\]").split(msg);
+
+        //store nonempty values from the response array
+        for (int i = 1; i < msgs.length; i++){
+            if (msgs[i].length() > 0){
+                fileHandler.append(msgs[i]);
+            }
+        }
+    }
 
     private void operationTransformations(int beginIndex, int endIndex, SocketStreamContainer socketStreamContainer) throws IOException {
         sendUTF("bundle " + Arrays.toString(Arrays.copyOfRange(fileHandler.read(), beginIndex, endIndex)), socketStreamContainer);
