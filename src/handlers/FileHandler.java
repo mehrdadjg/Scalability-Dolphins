@@ -2,6 +2,7 @@ package handlers;
 
 import java.io.*;
 import java.nio.file.Files;
+import java.util.Arrays;
 
 /**
  * A handler for the storage layer. This one stores in a file in the current working directory of the program.
@@ -23,6 +24,10 @@ public class FileHandler {
 
 		//create the writer object which will be used in all future write operations
 		fileWriter = new FileWriter(file, true);
+	}
+
+	public String getFileName(){
+		return file.getName();
 	}
 
 	/**
@@ -68,5 +73,9 @@ public class FileHandler {
 			// obviously, if closing fails, it is already closed
 			//e.printStackTrace();
 		}
+	}
+
+	public int hash(int length){
+		return Arrays.hashCode(Arrays.copyOf(read(), length));
 	}
 }

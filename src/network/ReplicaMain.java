@@ -25,7 +25,7 @@ public class ReplicaMain implements Runnable{
     private boolean isRunning;
     private FileHandler fileHandler = new FileHandler("file.txt");
     private ReplicaReceiver replicaReceiver;
-    private int pingInterval = 1500;
+    private int pingInterval = Resources.TIMEOUT;
     private Timer timeoutTimer = new Timer(true);
     private SocketStreamContainer socketStreamContainer;
     private boolean proxyConnected;

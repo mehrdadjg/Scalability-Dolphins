@@ -17,6 +17,7 @@ public abstract class Resources {
     public static int REPLICAPORT = 2229;               //The port used for replica-proxy connections
     public static int RECOVERYPORT = 2227;              //The port that replicas accept recovery requests on
     public static int RECONNECTRETRYINTERVAL = 5000;    //The time between reconnect attempts in the client
+    public static int TIMEOUT = 1500;              //The interval between pings to the proxy
     public static boolean DEBUG = false;                //For debugging purposes
 
 
@@ -36,6 +37,7 @@ public abstract class Resources {
             REPLICAPORT = Integer.parseInt(properties.getProperty("REPLICAPORT", "" + REPLICAPORT));
             RECOVERYPORT = Integer.parseInt(properties.getProperty("RECOVERYPORT", "" + RECOVERYPORT));
             RECONNECTRETRYINTERVAL = Integer.parseInt(properties.getProperty("RECONNECTRETRYINTERVAL", "" + RECONNECTRETRYINTERVAL));
+            TIMEOUT = Integer.parseInt(properties.getProperty("TIMEOUT", "" + TIMEOUT));
             DEBUG = Boolean.parseBoolean(properties.getProperty("DEBUG", "" + DEBUG));
         } catch (IOException e) {
             //e.printStackTrace();

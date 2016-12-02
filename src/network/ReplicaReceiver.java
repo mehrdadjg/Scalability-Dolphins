@@ -1,6 +1,7 @@
 package network;
 
 import handlers.FileHandler;
+import util.Resources;
 import util.SocketStreamContainer;
 import util.TimeoutTimer;
 
@@ -66,7 +67,7 @@ class ReplicaReceiver implements Runnable{
     private class ReplicaReceiverWorker implements Runnable{
         private SocketStreamContainer recoverer;
         private TimeoutTimer timer = new TimeoutTimer();
-        private int timeout = 1000;
+        private int timeout = Resources.TIMEOUT * 2;
 
         ReplicaReceiverWorker(SocketStreamContainer recoverer){
             this.recoverer = recoverer;
@@ -94,6 +95,9 @@ class ReplicaReceiver implements Runnable{
                                 break;
                             case "bundle" :
                                 replicaMain.operationBundle(msg);
+                            case "hash":
+                                operationHash(msg.split(" ")[1], Integer.parseInt(msg.split(" ")[2]), recoverer);
+                                break;
                             default:
                                 //Discard messages that are not recognized as part of the protocol
                                 recoverer.dataOutputStream.writeUTF("error:incorrect format");
@@ -107,6 +111,15 @@ class ReplicaReceiver implements Runnable{
                 }
             } while (!timer.isTimeoutFlag());   //if no messages are received, then time out and close the connection
 
+        }
+
+        private void operationHash(String fileName, int length, SocketStreamContainer socketStreamContainer) throws IOException{
+            String reply = "signature ";                        //message header
+            reply += fileHandler.getFileName() + " ";           //filename
+            reply += length + " ";                              //number of transformations in the hash
+            reply += fileHandler.hash(length);                  //hash of contents to the specified length
+            recoverer.dataOutputStream.writeUTF(reply);
+            recoverer.dataOutputStream.flush();
         }
     }
 }
