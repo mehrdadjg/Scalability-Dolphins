@@ -53,7 +53,7 @@ public class ReplicaMain implements Runnable{
                 System.out.println("Connected to proxy");
 
                 //retrieve file contents
-                requestUpdates(socketStreamContainer);
+                synchronize(socketStreamContainer);
 
 
                 while (isRunning) {
@@ -131,7 +131,7 @@ public class ReplicaMain implements Runnable{
      * @param proxy The SocketStreamContainer object which has the currently open streams to the proxy
      * @throws IOException if the streams are disconnected
      */
-    private void requestUpdates(SocketStreamContainer proxy) throws IOException {
+    private void synchronize(SocketStreamContainer proxy) throws IOException {
 
         //send an update request
         proxy.dataOutputStream.writeUTF("update");
@@ -167,23 +167,61 @@ public class ReplicaMain implements Runnable{
         timer.startTimer(1000);
         while (!timer.isTimeoutFlag()){Thread.yield();}
 
-        //Request any new updates from each replica
-        int TNold = fileHandler.read().length;
+        int[] replicaTNs = new int[replicas.size()];
         for (SocketStreamContainer s : replicas){
             try{
                 if (s.dataInputStream.available() > 0) {
-                    int TNcurrent = Integer.parseInt(s.dataInputStream.readUTF().split(" ")[1]);                        //Get their current TN
+                    replicaTNs[replicas.indexOf(s)] = Integer.parseInt(s.dataInputStream.readUTF().split(" ")[1]);      //Get their current TN
+                } else {
+                    throw new IOException("Replica timeout");                                                           //If the dataInputStream is empty, then they did not reply in time and are assumed disconnected
+                }
+            } catch (IOException e){                                                                                    //If they are thought to be disconnected, then skip them
+                //e.printStackTrace();
+            }
+        }
 
-                    if (TNcurrent > TNold) {                                                                            //If their TN is greater than own
-                        s.dataOutputStream.writeUTF("transformations " + TNold + " "+ TNcurrent);                           //Request the missing TNs
+        //request hash from all replicas
+        int TNown = fileHandler.read().length;
+        for (SocketStreamContainer s : replicas) {
+            s.dataOutputStream.writeUTF("hash " + fileHandler.getFileName() + " " + Math.min(TNown, replicaTNs[replicas.indexOf(s)]));               //Request the hash of transformations that should exist in both documents
+            s.dataOutputStream.flush();
+        }
+
+        //wait for reply
+        timer = new TimeoutTimer();
+        timer.startTimer(1000);
+        while (!timer.isTimeoutFlag()){Thread.yield();}
+
+        //Request any new updates from each replica
+        for (SocketStreamContainer s : replicas){
+            try{
+                if (s.dataInputStream.available() > 0) {
+                    String hash_rs = s.dataInputStream.readUTF();
+
+                    String fileName = hash_rs.split(" ")[1];
+                    int length = Integer.parseInt(hash_rs.split(" ")[2]);
+                    int hash = Integer.parseInt(hash_rs.split(" ")[3]);
+
+                    if (replicaTNs[replicas.indexOf(s)] > TNown) {                                                                            //If their TN is greater than own
+                        if (fileHandler.hash(length) != hash){
+                            TNown = 0;
+                            fileHandler.purge();
+                        }
+
+                        s.dataOutputStream.writeUTF("transformations " + TNown + " "+ replicaTNs[replicas.indexOf(s)]);                           //Request the missing TNs
                         s.dataOutputStream.flush();
                         String reply = s.dataInputStream.readUTF();                                                         //Download the missing TNs
                         if (reply.startsWith("bundle ")){                                                                   //Check formatting
                             operationBundle(reply);                                                                         //Apply the downloads
-                            TNold = TNcurrent;
+                            TNown = replicaTNs[replicas.indexOf(s)];
                         }
-                    } else if (TNcurrent < TNold) {                                                                     //Otherwise, if their TN is less than own
-                        operationTransformations(TNcurrent, TNold, socketStreamContainer);                                  //Send the TNs they are missing
+                    } else if (replicaTNs[replicas.indexOf(s)] < TNown) {                                               //Otherwise, if their TN is less than own
+                        if (fileHandler.hash(length) != hash){
+                            sendUTF("replace " + Arrays.toString(Arrays.copyOfRange(fileHandler.read(), 0, TNown)), socketStreamContainer);   //send a replace message to have them replace their entire file
+                        } else{
+                            sendUTF("bundle " + Arrays.toString(Arrays.copyOfRange(fileHandler.read(), replicaTNs[replicas.indexOf(s)], TNown)), socketStreamContainer);    //Send the TNs they are missing
+
+                        }
                     }
                 } else {
                     throw new IOException("Replica timeout");                                                           //If the dataInputStream is empty, then they did not reply in time and are assumed disconnected
@@ -211,8 +249,7 @@ public class ReplicaMain implements Runnable{
     }
 
     private void operationTransformations(int beginIndex, int endIndex, SocketStreamContainer socketStreamContainer) throws IOException {
-        //prepare yourself
-        sendUTF(Arrays.toString(Arrays.copyOfRange(fileHandler.read(), beginIndex, endIndex)), socketStreamContainer);
+        sendUTF("bundle " + Arrays.toString(Arrays.copyOfRange(fileHandler.read(), beginIndex, endIndex)), socketStreamContainer);
     }
 
     public void shutdown() {

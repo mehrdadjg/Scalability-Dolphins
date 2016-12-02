@@ -14,7 +14,7 @@ import java.net.Socket;
 class RecoveryManager {
     private GroupManager<ProxyReplicaWorker> groupManager; //A list of available replicas to consult
     private String recoveryList = emptyList; //A mailbox for the list of changes needed for a recovery that is set by a ProxyReplicaWorker in a different thread
-    private final static int defaultTimeout = 500;
+    private final static int defaultTimeout = Resources.TIMEOUT;
     private final static String emptyList = "[]";
     private TimeoutTimer timer = new TimeoutTimer();
     private int recoveryPort = Resources.RECOVERYPORT;

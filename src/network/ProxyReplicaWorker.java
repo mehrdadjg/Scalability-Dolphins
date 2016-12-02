@@ -1,6 +1,7 @@
 package network;
 
 import util.BlockingQueue;
+import util.Resources;
 
 import java.io.IOException;
 import java.net.Socket;
@@ -13,7 +14,7 @@ import java.util.TimerTask;
 class ProxyReplicaWorker extends ProxyWorker {
     private GroupManager groupManager;
     private Timer timeoutTimer = new Timer(true);
-    private int timeout = 3000;
+    private int timeout = Resources.TIMEOUT * 2;
 
     /**
      * @param socket The socket which this worker should transmit and recieve from

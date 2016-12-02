@@ -78,4 +78,12 @@ public class FileHandler {
 	public int hash(int length){
 		return Arrays.hashCode(Arrays.copyOf(read(), length));
 	}
+
+	public void purge(){
+		try {
+			Files.write(file.toPath(), "".getBytes());
+		} catch (IOException e) {
+			//e.printStackTrace();
+		}
+	}
 }
