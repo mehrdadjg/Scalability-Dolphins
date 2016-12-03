@@ -27,8 +27,6 @@ public class ReplicaMain implements Runnable{
     private FileHandler fileHandler = new FileHandler("file.txt");
     private ReplicaReceiver replicaReceiver;
     private int pingInterval = Resources.TIMEOUT;
-    private Timer timeoutTimer = new Timer(true);
-    private SocketStreamContainer proxy;
     private boolean proxyConnected;
 
     public ReplicaMain(String ip, int port, int recoveryPort) throws IOException {
@@ -43,14 +41,14 @@ public class ReplicaMain implements Runnable{
     @Override
     public void run() {
         //Launch the receiver thread which will service incoming update requests
-        new Thread(replicaReceiver).start();
+        new Thread(replicaReceiver).start();                //Start the receiver thread that will handle recovery requests
         isRunning = true;
         while (isRunning) {
 
-            try{
-                proxy = new SocketStreamContainer(new Socket(proxyIp, proxyPort));
+            try (SocketStreamContainer proxy = new SocketStreamContainer(new Socket(proxyIp, proxyPort));){
+
                 proxyConnected = true;
-                startTimer();
+                startTimer(proxy);                               //Start the timer to periodically ping the proxy
                 System.out.println("Connected to proxy");
 
                 //retrieve file contents
@@ -62,7 +60,7 @@ public class ReplicaMain implements Runnable{
                     if (proxy.dataInputStream.available() > 0) {
                         String msg = proxy.dataInputStream.readUTF();
 
-                        System.out.println("Incoming Message from proxy > " + msg);
+                        Logger.log("Incoming Message from proxy > " + msg, Logger.LogType.Info);
 
                         switch (msg.split(" ")[0]) {
                             case "add":
@@ -87,7 +85,6 @@ public class ReplicaMain implements Runnable{
                         throw new IOException("proxy disconnected");
                     }
                 }
-                break;
             } catch (UnknownHostException e) {
                 //Possible ip is not online, or ip is not valid
                 e.printStackTrace();
@@ -95,8 +92,6 @@ public class ReplicaMain implements Runnable{
                 //Proxy is offline.
                 System.out.println("Disconnected from proxy. attempting reconnect");
                 //e.printStackTrace();
-            } finally {
-                proxy.close();
             }
         }
         fileHandler.close();
@@ -105,13 +100,11 @@ public class ReplicaMain implements Runnable{
     /**
      * Schedules a timer which periodically pings the host proxy
      */
-    private void startTimer(){
-        timeoutTimer.cancel();
-        timeoutTimer = new Timer(true);
+    private void startTimer(SocketStreamContainer proxy){
+        Timer timeoutTimer = new Timer(true);
         timeoutTimer.schedule(new TimerTask() {
             @Override
             public void run() {
-                timeoutTimer.cancel();
                 try {
                     sendUTF("ping", proxy);
                 } catch (IOException e) {
@@ -154,13 +147,13 @@ public class ReplicaMain implements Runnable{
             }
             //retry if proxy has not yet sent a reply
             if (proxy.dataInputStream.available() == 0){
-                Logger.log("Proxy timed out during recovery. reattempting");
+                Logger.log("Proxy timed out during recovery. reattempting", Logger.LogType.Warning);
                 continue;
             }
 
             //parse the IP addresses in the reply
             String[] replicaListString = Pattern.compile("\\[|,|\\]").split(proxy.dataInputStream.readUTF());
-            Logger.log("received addresses:  " + Arrays.toString(replicaListString));
+            Logger.log("received addresses:  " + Arrays.toString(replicaListString), Logger.LogType.Info);
 
             //create connections to all of the received IP addresses
             Vector<SocketStreamContainer> replicas = new Vector<>();
@@ -173,10 +166,10 @@ public class ReplicaMain implements Runnable{
                     }
                 }
             }
-            Logger.log("Opened " + replicas.size() + " Connections for recovery");
+            Logger.log("Opened " + replicas.size() + " Connections for recovery", Logger.LogType.Info);
 
             if (replicas.isEmpty()){
-                Logger.log("No connections made. Ending recovery");
+                Logger.log("No connections made. Ending recovery", Logger.LogType.Info);
                 recoveryComplete = true;
                 break;
             }
@@ -186,7 +179,7 @@ public class ReplicaMain implements Runnable{
                 try {
                     sendUTF("query_tn", s);
                 } catch (IOException e) {
-                    Logger.log("replica disconnected: " + s.socket.toString());
+                    Logger.log("replica disconnected: " + s.socket.toString(), Logger.LogType.Warning);
                     //e.printStackTrace();
                 }
             }
@@ -207,7 +200,7 @@ public class ReplicaMain implements Runnable{
                         throw new IOException("Replica timeout");                                                           //If the dataInputStream is empty, then they did not reply in time and are assumed disconnected
                     }
                 } catch (IOException e) {                                                                                    //If they are thought to be disconnected, then skip them
-                    Logger.log("replica disconnected: " + s.socket.toString());
+                    Logger.log("replica disconnected: " + s.socket.toString(), Logger.LogType.Warning);
                     //e.printStackTrace();
                 }
             }
@@ -259,7 +252,7 @@ public class ReplicaMain implements Runnable{
                         throw new IOException("Replica timeout");                                                           //If the dataInputStream is empty, then they did not reply in time and are assumed disconnected
                     }
                 } catch (IOException e) {                                                                                    //If they are thought to be disconnected, then skip them
-                    Logger.log("replica disconnected: " + s.socket.toString());
+                    Logger.log("replica disconnected: " + s.socket.toString(), Logger.LogType.Warning);
                     //e.printStackTrace();
                 }
             }
