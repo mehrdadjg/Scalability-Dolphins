@@ -1,6 +1,7 @@
 package launcher;
 
 import network.ReplicaMain;
+import util.Logger;
 import util.Resources;
 
 import java.io.IOException;
@@ -17,7 +18,8 @@ public class Replica {
 	private static int recoveryPort = Resources.RECOVERYPORT;
 
     public static void main(String[] args){
-        if (args.length > 0){
+		Logger.initialize(Logger.ProcessType.Replica);
+		if (args.length > 0){
             ip = args[0];
 			if (args.length > 1){
 				port = Integer.parseInt(args[1]);
