@@ -1,6 +1,7 @@
 package network;
 
 import util.BlockingQueue;
+import util.Resources;
 import util.SocketStreamContainer;
 
 import java.io.IOException;
@@ -64,7 +65,7 @@ public class ProxyWorker implements Runnable{
                 operationUpdate(msg);
                 break;
             case "list":
-            	// TODO?????
+            	operationList(msg);
             case "error" : case "error:" :
                 break;
             default:
@@ -86,6 +87,25 @@ public class ProxyWorker implements Runnable{
 
     private void operationDeliver(String msg){
         msgs.add(msg, this);
+    }
+
+    private void operationList(String msg) throws IOException {
+        GroupManager<ProxyReplicaWorker> groupManager = ProxyMain.replicaGroupManager;                                  //Get the group manager from proxyMain
+        String reply = "";
+
+        do {
+            ProxyReplicaWorker primary = groupManager.firstElement();                                                   //check the first available replica
+            String masterIP = primary.toString().split(":")[0];                                                         //get IP, we will be accessing through the recovery port
+            try(SocketStreamContainer master = new SocketStreamContainer(new Socket(masterIP, Resources.RECOVERYPORT))){//create connection to replica over the recovery port
+                master.dataOutputStream.writeUTF(msg);                                                                  //send the list request
+                master.dataOutputStream.flush();
+                reply = master.dataInputStream.readUTF();                                                               //store the reply
+            } catch (IOException e) {
+                groupManager.remove(primary);                                                                           //remove failed replica from groupManager
+                primary.shutdown();
+            }
+        } while (reply.length() == 0 && groupManager.replicasOnline());                                                 //keep trying replicas until we get a reply, or we run out of replicas
+        sendUTF(reply);                                                                                                 //pass the reply to the client
     }
 
     /**

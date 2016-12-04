@@ -20,7 +20,7 @@ public class ProxyMain implements Runnable{
     private boolean isRunning;
     private BlockingQueue msgs = new BlockingQueue();
     private GroupManager<ProxyWorker> clientGroupManager = new GroupManager<>();
-    private GroupManager<ProxyReplicaWorker> replicaGroupManager = new GroupManager<>();
+    public static GroupManager<ProxyReplicaWorker> replicaGroupManager = new GroupManager<>();
     private RecoveryManager recoveryManager = new RecoveryManager(replicaGroupManager);
 
     public ProxyMain(int clientPort, int replicaPort){

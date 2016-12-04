@@ -101,6 +101,11 @@ class ReplicaReceiver implements Runnable{
                             case "hash":
                                 operationHash(msg.split(" ")[1], Integer.parseInt(msg.split(" ")[2]), recoverer);
                                 break;
+                            case "list":
+                                String list = getDocumentList();
+                                recoverer.dataOutputStream.writeUTF("documents [" + list + "]");
+                                recoverer.dataOutputStream.flush();
+                                break;
                             default:
                                 //Discard messages that are not recognized as part of the protocol
                                 recoverer.dataOutputStream.writeUTF("error:incorrect format");
@@ -114,6 +119,28 @@ class ReplicaReceiver implements Runnable{
                 }
             } while (!timer.isTimeoutFlag());   //if no messages are received, then time out and close the connection
 
+        }
+
+
+        private String getDocumentList() {
+            try {
+                File location = new File(".");
+                String output = "";
+
+                File[] files = location.listFiles();
+
+                for(int i = 0; i < files.length; i++) {
+                    if(files[i].isFile()) {
+                        if(files[i].getName().endsWith(".txt")) {
+                            output += (files[i].getName().substring(0, files[i].getName().length() - 4)) + ",";
+                        }
+                    }
+                }
+
+                return output.substring(0, output.length() - 1);
+            } catch(Exception e) {
+                return "";
+            }
         }
 
 		private void operationHash(String fileName, int length, SocketStreamContainer socketStreamContainer) throws IOException{
