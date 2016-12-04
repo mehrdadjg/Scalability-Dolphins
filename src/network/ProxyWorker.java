@@ -82,11 +82,15 @@ public class ProxyWorker implements Runnable{
 
     /**
      * Retrieves updates with a TN of <TN> or higher from any available replica and sends them to the client
-     * @param msg a string of the format "Update <TN>"
+     * @param msg a string of the format "Update <ID> <TN>"
      * @throws IOException if sending process fails. Likely due to the client disconnecting.
      */
     void operationUpdate(String msg) throws IOException {
-        recoveryManager.recover(this, Integer.parseInt(msg.split(" ")[1]));
+    	if(msg.split(" ")[1].compareTo("null") != 0) {
+    		recoveryManager.recover(this, msg.split(" ")[1], Integer.parseInt(msg.split(" ")[2]));
+    	} else {
+    		sendUTF("bundle []");
+    	}
     }
 
     private void operationDeliver(String msg){
@@ -117,7 +121,6 @@ public class ProxyWorker implements Runnable{
         
         groupManager.broadcast(msg);
         sendUTF("done");
-        
     }
 
     /**

@@ -48,6 +48,7 @@ public class Client{
     public	static final boolean	debugging			= Resources.DEBUG;
     
     public	static final String		id					= Client.getSelfMAC() + new Random().nextInt();
+    public	static String			current_doc			= "null";
     
     private static ClientReceiver	receiver			= null;
     private static ClientSender		sender				= null;
@@ -136,8 +137,8 @@ public class Client{
     	}
     }
     
-    private static void initialize() throws IOException {
-    	dataOutputStream.writeUTF("update " + TN);
+    public static void initialize() throws IOException {
+    	dataOutputStream.writeUTF("update " + current_doc + " " + TN);
 
         //recieve and format the response
 		String reply = dataInputStream.readUTF();

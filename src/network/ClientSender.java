@@ -97,6 +97,9 @@ public class ClientSender implements Runnable {
 						   doc_name.contains("*")) {
 							System.out.println("... Unacceptable document name.");
 							break;
+						} else if(doc_name.compareTo("null") == 0) {
+							System.out.println("... Cannot use a reserved name.");
+							break;
 						}
 					}
 					
@@ -115,8 +118,21 @@ public class ClientSender implements Runnable {
 						}
 					}
 					
-					System.out.println("... " + doc_name + " was created and is open to be written on.");
-					status = EditorStatus.Editing;
+					if(this.responseMsg.compareTo("done") == 0) {
+						System.out.println("... " + doc_name + " was created and is open to be written on.");
+						Client.current_doc = doc_name;
+						status = EditorStatus.Editing;
+						try {
+							Client.initialize();
+						} catch (IOException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+					} else {
+						System.out.println("... Could not create the document.");
+					}
+					this.response		= null;
+					this.responseMsg	= null;
 				} else if(line.toLowerCase().startsWith("open ")) {
 					
 				} else if(line.toLowerCase().startsWith("help")) {

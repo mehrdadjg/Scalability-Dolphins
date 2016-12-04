@@ -19,7 +19,6 @@ import java.util.concurrent.Executors;
 class ReplicaReceiver implements Runnable{
     private int port;
     private boolean isRunning;
-    private FileHandler fileHandler;
     private ReplicaMain replicaMain;
 
     /**
@@ -27,9 +26,8 @@ class ReplicaReceiver implements Runnable{
      * @param fileHandler The handler for the file that this receiver will be providing
      * @param port The port number to listen to for incoming connection requests
      */
-    ReplicaReceiver(ReplicaMain replicaMain, FileHandler fileHandler, int port){
+    ReplicaReceiver(ReplicaMain replicaMain, int port){
         this.replicaMain = replicaMain;
-        this.fileHandler = fileHandler;
         this.port = port;
     }
 
@@ -82,17 +80,47 @@ class ReplicaReceiver implements Runnable{
                 try {
                     if (recoverer.dataInputStream.available() > 0){
                         String msg = recoverer.dataInputStream.readUTF();
-
+                        
+                        FileHandler fileHandler = null;
                         switch (msg.split(" ")[0]) {
                             case "query_tn" :
                                 //reply with the current TN
-                                recoverer.dataOutputStream.writeUTF("tn " + (fileHandler.read().length));
-                                recoverer.dataOutputStream.flush();
+                            	if(msg.split(" ").length == 2) {
+                            		fileHandler = new FileHandler(msg.split(" ")[1] + ".txt");
+                            		recoverer.dataOutputStream.writeUTF("tn [" + msg.split(" ")[1] + ":" + (fileHandler.read().length) + "]");
+                            		recoverer.dataOutputStream.flush();
+                            		fileHandler.close();
+                            		fileHandler = null;
+                            	} else {
+                            		File root = new File(".");
+                            		File[] docs = root.listFiles();
+                            		String tns = "";
+                            		for(int i = 0; i < docs.length; i++) {
+                            			if(docs[i].isFile() && docs[i].getName().endsWith(".txt")) {
+                            				String name = docs[i].getName().substring(0, docs[i].getName().length() - 3);
+                            				fileHandler = new FileHandler(docs[i].getName());
+                            				tns += (name + ":" + fileHandler.read().length + ",");
+                            				fileHandler.close();
+                            				fileHandler = null;
+                            			}
+                            		}
+                            		
+                            		if(tns.endsWith(",")) {
+                            			recoverer.dataOutputStream.writeUTF("tn [" + tns.substring(0, tns.length() - 1) + "]");
+                            			recoverer.dataOutputStream.flush();
+                            		} else {
+                            			recoverer.dataOutputStream.writeUTF("tn [" + tns + "]");
+                            			recoverer.dataOutputStream.flush();
+                            		}
+                            	}
                                 break;
                             case "transformations" :
                                 //prepare yourself
-                                recoverer.dataOutputStream.writeUTF("bundle " + Arrays.toString(Arrays.copyOfRange(fileHandler.read(), Integer.parseInt(msg.split(" ")[1]), Integer.parseInt(msg.split(" ")[2]))));
+                            	fileHandler = new FileHandler(msg.split(" ")[1] + ".txt");
+                                recoverer.dataOutputStream.writeUTF("bundle " + msg.split(" ")[1] + " " + Arrays.toString(Arrays.copyOfRange(fileHandler.read(), Integer.parseInt(msg.split(" ")[1]), Integer.parseInt(msg.split(" ")[2]))));
                                 recoverer.dataOutputStream.flush();
+                                fileHandler.close();
+                				fileHandler = null;
                                 break;
                             case "bundle" :
                                 replicaMain.operationBundle(msg);
@@ -142,14 +170,16 @@ class ReplicaReceiver implements Runnable{
                 return "";
             }
         }
-
+        
 		private void operationHash(String fileName, int length, SocketStreamContainer socketStreamContainer) throws IOException{
+			FileHandler fileHandler = new FileHandler(fileName);
             String reply = "signature ";                        //message header
             reply += fileHandler.getFileName() + " ";           //filename
             reply += length + " ";                              //number of transformations in the hash
             reply += fileHandler.hash(length);                  //hash of contents to the specified length
             recoverer.dataOutputStream.writeUTF(reply);
             recoverer.dataOutputStream.flush();
+            fileHandler.close();
         }
     }
 }

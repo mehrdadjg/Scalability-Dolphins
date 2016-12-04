@@ -23,7 +23,7 @@ class RecoveryManager {
         this.groupManager = groupManager;
     }
 
-    void recover(ProxyWorker recoverer, int TNold){
+    void recover(ProxyWorker recoverer, String doc_name, int TNold){
 
         boolean recoveryComplete = false;
         while (!recoveryComplete){
@@ -38,7 +38,7 @@ class RecoveryManager {
 
             try (SocketStreamContainer masterConnection = new SocketStreamContainer(new Socket(masterIP, recoveryPort))){
                 //Query the chosen replica
-                masterConnection.dataOutputStream.writeUTF("query_tn");
+                masterConnection.dataOutputStream.writeUTF("query_tn " + doc_name);
                 masterConnection.dataOutputStream.flush();
 
                 //setup a timer
@@ -52,7 +52,7 @@ class RecoveryManager {
                     throw new IOException("replica timed out");
                 }
 
-                masterConnection.dataOutputStream.writeUTF("transformations " + TNold + " " + TNmax);
+                masterConnection.dataOutputStream.writeUTF("transformations " + doc_name + " " + TNold + " " + TNmax);
                 masterConnection.dataOutputStream.flush();
 
                 timer.startTimer(defaultTimeout);

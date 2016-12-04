@@ -25,7 +25,7 @@ public class ReplicaMain implements Runnable{
     private String proxyIp;
     private int proxyPort;
     private boolean isRunning;
-    private FileHandler fileHandler = new FileHandler("file.txt");
+//    private FileHandler fileHandler = new FileHandler("file.txt");
     private ReplicaReceiver replicaReceiver;
     private int pingInterval = Resources.TIMEOUT;
     private boolean proxyConnected;
@@ -33,7 +33,7 @@ public class ReplicaMain implements Runnable{
     public ReplicaMain(String ip, int port, int recoveryPort) throws IOException {
         this.proxyIp = ip;
         this.proxyPort = port;
-        this.replicaReceiver = new ReplicaReceiver(this, fileHandler, recoveryPort);
+        this.replicaReceiver = new ReplicaReceiver(this, recoveryPort);
     }
 
     /**
@@ -62,19 +62,47 @@ public class ReplicaMain implements Runnable{
                         String msg = proxy.dataInputStream.readUTF();
 
                         Logger.log("Incoming Message from proxy > " + msg, Logger.LogType.Info);
-
+                        
+                        FileHandler fileHandler = null;
                         switch (msg.split(" ")[0]) {
                             case "add":
                             case "delete":
                                 //Write the incoming update to file
+                            	fileHandler = new FileHandler(msg.split(" ")[1] + ".txt");
                                 fileHandler.append(msg);
+                                fileHandler.close();
+                                fileHandler = null;
                                 break;
                             case "query_tn":
                                 //reply with the current TN
-                                sendUTF("tn " + (fileHandler.read().length), proxy);
+                            	if(msg.split(" ").length == 2) {
+                            		fileHandler = new FileHandler(msg.split(" ")[1] + ".txt");
+                            		sendUTF("tn [" + msg.split(" ")[1] + ":" + (fileHandler.read().length) + "]", proxy);
+                            		fileHandler.close();
+                            		fileHandler = null;
+                            	} else {
+                            		File root = new File(".");
+                            		File[] docs = root.listFiles();
+                            		String tns = "";
+                            		for(int i = 0; i < docs.length; i++) {
+                            			if(docs[i].isFile() && docs[i].getName().endsWith(".txt")) {
+                            				String name = docs[i].getName().substring(0, docs[i].getName().length() - 3);
+                            				fileHandler = new FileHandler(docs[i].getName());
+                            				tns += (name + ":" + fileHandler.read().length + ",");
+                            				fileHandler.close();
+                            				fileHandler = null;
+                            			}
+                            		}
+                            		
+                            		if(tns.endsWith(",")) {
+                            			sendUTF("tn [" + tns.substring(0, tns.length() - 1) + "]", proxy);
+                            		} else {
+                            			sendUTF("tn [" + tns + "]", proxy);
+                            		}
+                            	}
                                 break;
                             case "transformations":
-                                operationTransformations(Integer.parseInt(msg.split(" ")[1]), Integer.parseInt(msg.split(" ")[2]), proxy);
+                                operationTransformations(msg.split(" ")[1], Integer.parseInt(msg.split(" ")[2]), Integer.parseInt(msg.split(" ")[3]), proxy);
                                 break;
                             case "create":
                             	new FileHandler(msg.split(" ")[1] + ".txt");
@@ -98,7 +126,6 @@ public class ReplicaMain implements Runnable{
                 //e.printStackTrace();
             }
         }
-        fileHandler.close();
     }
 
     /**
@@ -141,7 +168,7 @@ public class ReplicaMain implements Runnable{
 
         while (!recoveryComplete && isRunning) {
             //send an update request
-            sendUTF("update",proxy);
+            sendUTF("update", proxy);
 
             //wait for reply
             TimeoutTimer timer = new TimeoutTimer();
@@ -270,7 +297,7 @@ public class ReplicaMain implements Runnable{
 
     /**
      * Appends a list of transformations to the end of the file
-     * @param msg The message, including the "bundle" header and the list of transformations
+     * @param msg The message, including the "bundle" header, the doc_name and the list of transformations
      * @throws IOException If the fileHandler cannot write to the file
      */
     void operationBundle(String msg) throws IOException{
@@ -278,11 +305,13 @@ public class ReplicaMain implements Runnable{
             String[] msgs = Pattern.compile("\\[|,|\\]").split(msg);
 
             //store nonempty values from the response array
+            FileHandler fileHandler = new FileHandler(msg.split(" ")[1] + ".txt");
             for (int i = 1; i < msgs.length; i++){
                 if (msgs[i].length() > 0){
                     fileHandler.append(msgs[i]);
                 }
             }
+            fileHandler.close();
     }
 
     /**
@@ -311,8 +340,9 @@ public class ReplicaMain implements Runnable{
      * @param socketStreamContainer The connection that the list should be sent on
      * @throws IOException If the connection is not open
      */
-    void operationTransformations(int beginIndex, int endIndex, SocketStreamContainer socketStreamContainer) throws IOException {
-        sendUTF("bundle " + Arrays.toString(Arrays.copyOfRange(fileHandler.read(), beginIndex, endIndex)), socketStreamContainer);
+    void operationTransformations(String doc_name, int beginIndex, int endIndex, SocketStreamContainer socketStreamContainer) throws IOException {
+    	FileHandler fileHandler = new FileHandler(doc_name + ".txt");
+        sendUTF("bundle " + doc_name + " " + Arrays.toString(Arrays.copyOfRange(fileHandler.read(), beginIndex, endIndex)), socketStreamContainer);
     }
 
     public void shutdown() {
