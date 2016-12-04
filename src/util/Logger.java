@@ -96,7 +96,7 @@ public class Logger {
 		
 		if(!root.exists()) {
 			if(!root.mkdirs()) {
-				System.err.println("Logger::Could not initilize the logger.");
+				System.out.println("Logger::Could not initilize the logger.");
 			}
 		}
 		
@@ -156,7 +156,7 @@ public class Logger {
 		writer.flush();
 		
 		if(type == LogType.Error)
-			System.err.println(index + "(" + type.toString().charAt(0) + "). " + msg);
+			System.out.println(index + "(" + type.toString().charAt(0) + "). " + msg);
 		else
 			System.out.println(index + "(" + type.toString().charAt(0) + "). " + msg);
 	}

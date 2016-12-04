@@ -70,7 +70,7 @@ public class Client{
     			}
     		}
     	} catch(Exception e) {
-    		System.err.println("ERROR IN CLIENT. The input could not be processed.");
+    		System.out.println("ERROR IN CLIENT. The input could not be processed.");
 			e.printStackTrace();
     	}
     	
@@ -80,7 +80,7 @@ public class Client{
     		socket = new Socket(host, port);
     		System.out.println("Connected.");
     	} catch (IOException e) {
-    		System.err.println("ERROR IN CLIENT. Cannot open a socket to the proxy server.");
+    		System.out.println("ERROR IN CLIENT. Cannot open a socket to the proxy server.");
     		if(debugging) {
     			e.printStackTrace();
     		} else {
@@ -95,7 +95,7 @@ public class Client{
     		
     		initialize();
     	} catch(IOException e) {
-    		System.err.println("ERROR IN CLIENT. Cannot establish the required connections to the proxy.");
+    		System.out.println("ERROR IN CLIENT. Cannot establish the required connections to the proxy.");
     		if(debugging) {
     			e.printStackTrace();
     		} else {
@@ -274,5 +274,9 @@ public class Client{
 			Logger.log("Failed sending a message to the proxy.", LogType.Warning);
 			Logger.log("The failed message: " + msg, LogType.Info);
 		}
+	}
+
+	public static void respondToSender(String responseMsg, Object response) {
+		sender.respondWith(responseMsg, response);
 	}
 }

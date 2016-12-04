@@ -35,14 +35,19 @@ public class ClientReceiver implements Runnable {
 			try {
 				input = dataInputStream.readUTF();
 				if(Client.debugging) {
-					System.out.print("input: " + input);
+					System.out.println("input: " + input);
 				}
+				
 				if(input.startsWith("bundle")) {
 					Client.performIncomingUpdates(input);
+					continue;
+				} else if(input.startsWith("documents")) {
+					manageListOfDocuments(input);
 					continue;
 				}
 			} catch(IOException e) {
 				Logger.log("ERROR IN CLIENT. Cannot read from the incoming stream.", LogType.Error);
+				Client.respondToSender("error", null);
 				reconnect();
 				continue;
 			}
@@ -50,6 +55,7 @@ public class ClientReceiver implements Runnable {
 			DocumentUpdate incomingUpdate = DocumentUpdate.fromString(input);
 			
 			if(incomingUpdate == null) {
+				Client.respondToSender("error", null);
 				Logger.log("Incorrect protocol detected in the incoming stream. Packet dropped.", LogType.Error);
 				Logger.log("Incorrect input: " + input, LogType.Info);
 //				Client.informProxy("error");
@@ -59,6 +65,20 @@ public class ClientReceiver implements Runnable {
 			OperationalTransformation.update(approvedUpdates, unapprovedUpdates, incomingUpdate);
 			
 			Client.performIncomingUpdate(incomingUpdate);
+		}
+	}
+
+	private void manageListOfDocuments(String input) {
+		if(input.indexOf("]") - input.indexOf("[") == 1) {
+			Client.respondToSender("list_received", null);
+		} else {
+			String[] names = input.substring(11, input.length() - 2).trim().split(",");
+			
+			if(names.length == 0 || (names.length == 1 && names[0].trim().compareTo("") == 0)) {
+				Client.respondToSender("list_received", null);
+			} else {
+				Client.respondToSender("list_received", names);
+			}
 		}
 	}
 

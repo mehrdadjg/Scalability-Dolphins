@@ -5,6 +5,7 @@ import util.Resources;
 import util.SocketStreamContainer;
 import util.TimeoutTimer;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.SocketTimeoutException;
@@ -100,6 +101,11 @@ class ReplicaReceiver implements Runnable{
                             case "hash":
                                 operationHash(msg.split(" ")[1], Integer.parseInt(msg.split(" ")[2]), recoverer);
                                 break;
+                            case "list":
+                            	String list = getDocumentList();
+                            	recoverer.dataOutputStream.writeUTF("documents [" + list + "]");
+                                recoverer.dataOutputStream.flush();
+                            	break;
                             default:
                                 //Discard messages that are not recognized as part of the protocol
                                 recoverer.dataOutputStream.writeUTF("error:incorrect format");
@@ -115,7 +121,28 @@ class ReplicaReceiver implements Runnable{
 
         }
 
-        private void operationHash(String fileName, int length, SocketStreamContainer socketStreamContainer) throws IOException{
+        private String getDocumentList() {
+        	try {
+        		File location = new File(".");
+        		String output = "";
+        		
+        		File[] files = location.listFiles();
+        		
+        		for(int i = 0; i < files.length; i++) {
+        			if(files[i].isFile()) {
+        				if(files[i].getName().endsWith(".txt")) {
+        					output += (files[i].getName().substring(0, files[i].getName().length() - 4)) + ",";
+        				}
+        			}
+        		}
+        		
+        		return output.substring(0, output.length() - 1);
+        	} catch(Exception e) {
+        		return "";
+        	}
+		}
+
+		private void operationHash(String fileName, int length, SocketStreamContainer socketStreamContainer) throws IOException{
             String reply = "signature ";                        //message header
             reply += fileHandler.getFileName() + " ";           //filename
             reply += length + " ";                              //number of transformations in the hash
