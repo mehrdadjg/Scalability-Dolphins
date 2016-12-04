@@ -7,6 +7,7 @@ import util.Resources;
 import util.SocketStreamContainer;
 import util.TimeoutTimer;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.Socket;
@@ -72,6 +73,10 @@ public class ReplicaMain implements Runnable{
                                 //reply with the current TN
                                 sendUTF("tn " + (fileHandler.read().length), proxy);
                                 break;
+                            case "list":
+                            	String list = getDocumentList();
+                            	sendUTF("documents [" + list + "]", proxy);
+                            	break;
                             case "transformations":
                                 operationTransformations(Integer.parseInt(msg.split(" ")[1]), Integer.parseInt(msg.split(" ")[2]), proxy);
                                 break;
@@ -96,6 +101,27 @@ public class ReplicaMain implements Runnable{
         }
         fileHandler.close();
     }
+    
+    private String getDocumentList() {
+    	try {
+    		File location = new File(".");
+    		String output = "";
+    		
+    		File[] files = location.listFiles();
+    		
+    		for(int i = 0; i < files.length; i++) {
+    			if(files[i].isFile()) {
+    				if(files[i].getName().endsWith(".txt")) {
+    					output += (files[i].getName().substring(0, files[i].getName().length() - 4)) + ",";
+    				}
+    			}
+    		}
+    		
+    		return output.substring(0, output.length() - 1);
+    	} catch(Exception e) {
+    		return "";
+    	}
+	}
 
     /**
      * Schedules a timer which periodically pings the host proxy
