@@ -44,6 +44,9 @@ public class ClientReceiver implements Runnable {
 				} else if(input.startsWith("documents")) {
 					manageListOfDocuments(input);
 					continue;
+				} else if(input.startsWith("done")) {
+					sendDoneToSender();
+					continue;
 				}
 			} catch(IOException e) {
 				Logger.log("ERROR IN CLIENT. Cannot read from the incoming stream.", LogType.Error);
@@ -68,11 +71,15 @@ public class ClientReceiver implements Runnable {
 		}
 	}
 
+	private void sendDoneToSender() {
+		Client.respondToSender("done", null);
+	}
+
 	private void manageListOfDocuments(String input) {
 		if(input.indexOf("]") - input.indexOf("[") == 1) {
 			Client.respondToSender("list_received", null);
 		} else {
-			String[] names = input.substring(11, input.length() - 2).trim().split(",");
+			String[] names = input.substring(11, input.length() - 1).trim().split(",");
 			
 			if(names.length == 0 || (names.length == 1 && names[0].trim().compareTo("") == 0)) {
 				Client.respondToSender("list_received", null);

@@ -66,6 +66,10 @@ public class ProxyWorker implements Runnable{
                 break;
             case "list":
             	operationList(msg);
+            	break;
+            case "create":
+            	operationCreate(msg);
+            	break;
             case "error" : case "error:" :
                 break;
             default:
@@ -106,6 +110,14 @@ public class ProxyWorker implements Runnable{
             }
         } while (reply.length() == 0 && groupManager.replicasOnline());                                                 //keep trying replicas until we get a reply, or we run out of replicas
         sendUTF(reply);                                                                                                 //pass the reply to the client
+    }
+    
+    private void operationCreate(String msg) throws IOException {
+        GroupManager<ProxyReplicaWorker> groupManager = ProxyMain.replicaGroupManager;
+        
+        groupManager.broadcast(msg);
+        sendUTF("done");
+        
     }
 
     /**

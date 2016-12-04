@@ -76,6 +76,9 @@ public class ReplicaMain implements Runnable{
                             case "transformations":
                                 operationTransformations(Integer.parseInt(msg.split(" ")[1]), Integer.parseInt(msg.split(" ")[2]), proxy);
                                 break;
+                            case "create":
+                            	new FileHandler(msg.split(" ")[1] + ".txt");
+                            	break;
                             default:
                                 //Discard messages that are not recognized as part of the protocol
                                 sendUTF("error:incorrect format", proxy);

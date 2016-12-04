@@ -11,7 +11,7 @@ public class ClientSender implements Runnable {
 	
 	private DataOutputStream			dataOutputStream;
     
-    private boolean						isRunning;
+    private volatile boolean			isRunning;
     
     private EditorStatus				status		= EditorStatus.CommandLine;
     
@@ -71,21 +71,58 @@ public class ClientSender implements Runnable {
 					if(responseMsg.compareTo("list_received") == 0) {
 						String[] list = (String[]) response;
 						
-						// TODO
+						if(list.length > 0) {
+							System.out.println("... The documents are as listed below:");
+							
+							for(int i = 0; i < list.length; i++) {
+								System.out.println("... " + (i+1) + ". " + list[i]);
+							}
+						} else {
+							System.out.println("... The documents are as listed below:");
+						}
 					} else {
 						status = EditorStatus.Error;
-						System.out.println("The request was responded with an error.");
+						System.out.println("... The request was responded with an error.");
 					}
 					this.response		= null;
 					this.responseMsg	= null;
 				} else if(line.toLowerCase().startsWith("create ")) {
+					String doc_name = line.substring(7);
+					if(doc_name.trim().compareTo("") == 0) {
+						System.out.println("... Unacceptable document name.");
+						break;
+					} else {
+						if(doc_name.contains("<") || doc_name.contains(">") || doc_name.contains(":") || doc_name.contains("\"") ||
+						   doc_name.contains("/") || doc_name.contains("\\") || doc_name.contains("|") || doc_name.contains("?") ||
+						   doc_name.contains("*")) {
+							System.out.println("... Unacceptable document name.");
+							break;
+						}
+					}
 					
+					try {
+						dataOutputStream.writeUTF("create " + doc_name);
+						dataOutputStream.flush();
+						
+						waitForAnswer();
+					} catch (IOException e) {
+						System.out.println("ERROR IN CLIENT. Cannot write to the outgoing stream.");
+						if(Client.debugging) {
+							e.printStackTrace();
+						} else {
+							scanner.close();
+							return;
+						}
+					}
+					
+					System.out.println("... " + doc_name + " was created and is open to be written on.");
+					status = EditorStatus.Editing;
 				} else if(line.toLowerCase().startsWith("open ")) {
 					
 				} else if(line.toLowerCase().startsWith("help")) {
 					
 				} else {
-					System.out.println("Unrecognizable command.");
+					System.out.println("... Unrecognizable command.");
 				}
 				
 				break;
@@ -151,7 +188,7 @@ public class ClientSender implements Runnable {
 	
 	private String responseMsg	= null;
 	private Object response		= null;
-	private boolean waiting		= true;
+	private volatile boolean waiting		= true;
 	
 	private void waitForAnswer() {
 		waiting = true;
