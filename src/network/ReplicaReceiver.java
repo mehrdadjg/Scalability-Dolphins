@@ -174,7 +174,7 @@ class ReplicaReceiver implements Runnable{
         
 		private void operationHash(String msg) throws IOException{
             String[] hashRequests = Pattern.compile("\\[|,|\\]").split(msg.replaceFirst("hash ",""));
-            String reply = "signature ";                        //message header
+            String reply = "signature [";                        //message header
             for (String s : hashRequests){
                 if (s.length() == 0){
                     continue;
@@ -182,18 +182,17 @@ class ReplicaReceiver implements Runnable{
                 String fileName = s.split(":")[0];
                 int length = Integer.parseInt(s.split(":")[1]);
 
-                try(FileHandler fileHandler = new FileHandler(fileName)){
+                try(FileHandler fileHandler = new FileHandler(fileName + ".txt")){
                     length = Math.min(length, fileHandler.read().length);
 
                     reply += ",";
-                    reply += fileHandler.getFileName() + ":";           //filename
+                    reply += fileName + ":";           //filename
                     reply += length + ":";                              //number of transformations in the hash
                     reply += fileHandler.hash(length);                  //hash of contents to the specified length
                 }
 
             }
-
-            reply = reply.replaceFirst(",","");
+            reply = reply.replaceFirst(",","") + "]";
             recoverer.dataOutputStream.writeUTF(reply);
             recoverer.dataOutputStream.flush();
 

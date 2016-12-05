@@ -86,7 +86,7 @@ public class ReplicaMain implements Runnable{
                             		String tns = "";
                             		for(int i = 0; i < docs.length; i++) {
                             			if(docs[i].isFile() && docs[i].getName().endsWith(".txt")) {
-                            				String name = docs[i].getName().substring(0, docs[i].getName().length() - 3);
+                            				String name = docs[i].getName().substring(0, docs[i].getName().length() - 4);
                             				fileHandler = new FileHandler(docs[i].getName());
                             				tns += (name + ":" + fileHandler.read().length + ",");
                             				fileHandler.close();
@@ -252,7 +252,7 @@ public class ReplicaMain implements Runnable{
         String hashes = "hash [";
         for(int i = 0; i < docs.length; i++) {
             if(docs[i].isFile() && docs[i].getName().endsWith(".txt")) {
-                String name = docs[i].getName().substring(0, docs[i].getName().length() - 3);
+                String name = docs[i].getName().substring(0, docs[i].getName().length() - 4);
                 int hashTN = 0;
                 int hashcode = 0;
                 try(FileHandler fileHandler = new FileHandler(docs[i].getName())){
@@ -331,28 +331,31 @@ public class ReplicaMain implements Runnable{
         //receive the hashes from the replicas
         String[] hashes = readFromMultipleConnections(replicas);
 
-        System.err.println(Arrays.toString(hashes));
         //for each replica...
         for(int i = 0; i < replicas.size(); i++){
             String currentReply = hashes[i].replaceFirst("signature ", "");
             SocketStreamContainer currentReplica = replicas.elementAt(i);
 
             //for each file at each replica...
-            for (String currentFile : Pattern.compile("\\[|,|\\]").split(currentReply)){
+            String[] split = Pattern.compile("\\[|,|\\]").split(currentReply);
+            for (int j = 0; j < split.length; j++) {
+                String currentFile = split[j];
+                if (currentFile.length() == 0) {
+                    continue;
+                }
                 String fileName = currentFile.split(":")[0];
                 int theirTN = Integer.parseInt(currentFile.split(":")[1]);
                 int hash = Integer.parseInt(currentFile.split(":")[2]);
 
-                try(FileHandler fileHandler = new FileHandler(fileName)){
+                try (FileHandler fileHandler = new FileHandler(fileName + ".txt")) {
                     int ownTN = fileHandler.read().length;
 
                     //check if the files are compatible
-                    boolean isCompatible = (hash == Arrays.hashCode(Arrays.copyOfRange(fileHandler.read(), 0 , theirTN)));
-
+                    boolean isCompatible = (hash == Arrays.hashCode(Arrays.copyOfRange(fileHandler.read(), 0, theirTN)));
                     //if their file is incompatible
-                    if (!isCompatible){
+                    if (!isCompatible) {
                         //and their file is smaller
-                        if (theirTN < ownTN){
+                        if (replicaTNs[i][j+1] < ownTN) {
                             //replace their file
                             sendUTF("replace " + fileName + ":" + Arrays.toString(Arrays.copyOfRange(fileHandler.read(), 0, ownTN)), currentReplica);
                         }
@@ -362,32 +365,30 @@ public class ReplicaMain implements Runnable{
                             fileHandler.purge();
                             ownTN = 0;
 
-                            sendUTF("transformations " + ownTN + " " + theirTN,currentReplica);                         //Request the file
+                            sendUTF("transformations " + fileName.replaceFirst(".txt", "") + " " + ownTN + " " + replicaTNs[i][j+1], currentReplica);                         //Request the file
                             String reply = currentReplica.dataInputStream.readUTF();                                    //Download the file
                             if (reply.startsWith("bundle ")) {                                                          //Check formatting
                                 operationBundle(reply);                                                                 //Apply the downloads
-                                ownTN = theirTN;
                             }
                         }
                         //If the files are compatible
-                    } else{
+                    } else {
                         //and their file is smaller
-                        if (theirTN < ownTN){
+                        if (replicaTNs[i][j+1] < ownTN) {
                             //send the difference
-                            sendUTF("bundle " + Arrays.toString(Arrays.copyOfRange(fileHandler.read(), theirTN, ownTN)), currentReplica);
+                            sendUTF("bundle " + fileName.replaceFirst(".txt", "") + " " + Arrays.toString(Arrays.copyOfRange(fileHandler.read(), replicaTNs[i][j+1], ownTN)), currentReplica);
                             //and their file is bigger
-                        } else if (ownTN < theirTN){
+                        } else if (ownTN < replicaTNs[i][j+1]) {
                             //request the difference
-                            sendUTF("transformations " + ownTN + " " + theirTN,currentReplica);                         //Request the file
+                            sendUTF("transformations " + fileName.replaceFirst(".txt", "") + " " + ownTN + " " + replicaTNs[i][j+1], currentReplica);                         //Request the file
                             String reply = currentReplica.dataInputStream.readUTF();                                    //Download the file
                             if (reply.startsWith("bundle ")) {                                                          //Check formatting
                                 operationBundle(reply);                                                                 //Apply the downloads
-                                ownTN = theirTN;
                             }
                         }
                     }
 
-                } catch (IOException e){
+                } catch (IOException e) {
                     //e.printStackTrace();
                 }
             }
@@ -402,8 +403,8 @@ public class ReplicaMain implements Runnable{
      * @throws IOException If the fileHandler cannot write to the file
      */
     void operationBundle(String msg) throws IOException{
-            msg = msg.substring("bundle ".length());
-            String[] msgs = Pattern.compile("\\[|,|\\]").split(msg);
+
+            String[] msgs = Pattern.compile("\\[|,|\\]").split(msg.substring("bundle ".length()));
 
             //store nonempty values from the response array
             FileHandler fileHandler = new FileHandler(msg.split(" ")[1] + ".txt");
