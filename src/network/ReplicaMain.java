@@ -139,6 +139,7 @@ public class ReplicaMain implements Runnable{
                 try {
                     sendUTF("ping", proxy);
                 } catch (IOException e) {
+                    timeoutTimer.cancel();
                     proxyConnected = false;
                     //e.printStackTrace();
                 }
