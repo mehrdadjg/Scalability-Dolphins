@@ -245,26 +245,6 @@ public class ReplicaMain implements Runnable{
         return replies;
     }
 
-    private String fileHashes() throws IOException{
-        File root = new File(".");
-        File[] docs = root.listFiles();
-        String hashes = "";
-        for(int i = 0; i < docs.length; i++) {
-            if(docs[i].isFile() && docs[i].getName().endsWith(".txt")) {
-                String name = docs[i].getName().substring(0, docs[i].getName().length() - 3);
-                FileHandler fileHandler = new FileHandler(docs[i].getName());
-                hashes += (name + ":" + fileHandler.read().length + ":" + Arrays.hashCode(fileHandler.read()) + ",");
-                fileHandler.close();
-            }
-        }
-
-        if(hashes.endsWith(",")) {
-            return ("tn [" + hashes.substring(0, hashes.length() - 1) + "]");
-        } else {
-            return ("tn [" + hashes + "]");
-        }
-    }
-
     private void hashBroadcast(Vector<SocketStreamContainer> replicas, int[] replicaTNs){
         File root = new File(".");
         File[] docs = root.listFiles();
@@ -285,9 +265,9 @@ public class ReplicaMain implements Runnable{
         }
 
         if(hashes.endsWith(",")) {
-            hashes = ("tn [" + hashes.substring(0, hashes.length() - 1) + "]");
+            hashes = ("[" + hashes.substring(0, hashes.length() - 1) + "]");
         } else {
-            hashes = ("tn [" + hashes + "]");
+            hashes = ("[" + hashes + "]");
         }
 
         broadcast(hashes, replicas);
@@ -396,11 +376,8 @@ public class ReplicaMain implements Runnable{
                 } catch (IOException e){
                     //e.printStackTrace();
                 }
-
             }
-
         }
-
         replicas.forEach(SocketStreamContainer::close);
         System.out.println("finished updating");
     }
@@ -438,7 +415,7 @@ public class ReplicaMain implements Runnable{
         try(FileHandler fileHandler = new FileHandler(fileName)){
             //empty the file
             fileHandler.purge();
-            
+
             //store nonempty values from the response array
             for (int i = 1; i < msgs.length; i++){
                 if (msgs[i].length() > 0){
