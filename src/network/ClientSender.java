@@ -77,9 +77,10 @@ public class ClientSender implements Runnable {
 						if(list.length > 0) {
 							System.out.println("... The documents are as listed below:");
 							
+							int index = 1;
 							for(int i = 0; i < list.length; i++) {
 								if(list[i].trim().compareTo("") != 0)
-									System.out.println("... " + (i+1) + ". " + list[i]);
+									System.out.println("... " + (index++) + ". " + list[i]);
 							}
 						} else {
 							System.out.println("There are currently no documents. create one with open <name>");
