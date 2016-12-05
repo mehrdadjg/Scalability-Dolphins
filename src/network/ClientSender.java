@@ -84,7 +84,7 @@ public class ClientSender implements Runnable {
 							System.out.println("There are currently no documents. create one with open <name>");
 						}
 					} else {
-						status = EditorStatus.Error;
+						status = EditorStatus.CommandLine;
 						System.out.println("... The request was responded with an error.");
 					}
 					this.response		= null;

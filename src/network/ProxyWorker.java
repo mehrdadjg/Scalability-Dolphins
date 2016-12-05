@@ -99,9 +99,9 @@ public class ProxyWorker implements Runnable{
 
     private void operationList(String msg) throws IOException {
         GroupManager<ProxyReplicaWorker> groupManager = ProxyMain.replicaGroupManager;                                  //Get the group manager from proxyMain
-        String reply = "";
+        String reply = "error: system offline";
 
-        do {
+        while (reply.compareTo("error: system offline") == 0 && groupManager.replicasOnline()) {
             ProxyReplicaWorker primary = groupManager.firstElement();                                                   //check the first available replica
             String masterIP = primary.toString().split(":")[0];                                                         //get IP, we will be accessing through the recovery port
             try(SocketStreamContainer master = new SocketStreamContainer(new Socket(masterIP, Resources.RECOVERYPORT))){//create connection to replica over the recovery port
@@ -112,7 +112,7 @@ public class ProxyWorker implements Runnable{
                 groupManager.remove(primary);                                                                           //remove failed replica from groupManager
                 primary.shutdown();
             }
-        } while (reply.length() == 0 && groupManager.replicasOnline());                                                 //keep trying replicas until we get a reply, or we run out of replicas
+        }                                                //keep trying replicas until we get a reply, or we run out of replicas
         sendUTF(reply);                                                                                                 //pass the reply to the client
     }
     
