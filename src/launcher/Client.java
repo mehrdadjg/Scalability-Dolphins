@@ -47,7 +47,7 @@ public class Client{
     
     public	static final boolean	debugging			= Resources.DEBUG;
     
-    public	static final String		id					= Client.getSelfMAC() + new Random().nextInt();
+    public	static String			id					= Client.getSelfMAC() + new Random().nextInt();
     public	static String			current_doc			= "null";
     
     private static ClientReceiver	receiver			= null;
@@ -114,6 +114,7 @@ public class Client{
     }
     
     public static void close() {
+    	id = Client.getSelfMAC() + new Random().nextInt();
     	TN = 0;
     	approvedUpdates = new ArrayList<>();
     	unapprovedUpdates = new ArrayList<>();
