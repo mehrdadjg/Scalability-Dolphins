@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.SocketTimeoutException;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.regex.Pattern;
@@ -100,7 +101,7 @@ class ReplicaReceiver implements Runnable{
                             		String tns = "";
                                     for (File doc : docs) {
                                         if (doc.isFile() && doc.getName().endsWith(".txt")) {
-                                            String name = doc.getName().substring(0, doc.getName().length() - 3);
+                                            String name = doc.getName().substring(0, doc.getName().length() - 4);
                                             fileHandler = new FileHandler(doc.getName());
                                             tns += (name + ":" + fileHandler.read().length + ",");
                                             fileHandler.close();
@@ -174,7 +175,11 @@ class ReplicaReceiver implements Runnable{
         
 		private void operationHash(String msg) throws IOException{
             String[] hashRequests = Pattern.compile("\\[|,|\\]").split(msg.replaceFirst("hash ",""));
+
+            HashSet<String> allFiles = new HashSet<>();
+
             String reply = "signature [";                        //message header
+
             for (String s : hashRequests){
                 if (s.length() == 0){
                     continue;
@@ -189,8 +194,24 @@ class ReplicaReceiver implements Runnable{
                     reply += fileName + ":";           //filename
                     reply += length + ":";                              //number of transformations in the hash
                     reply += fileHandler.hash(length);                  //hash of contents to the specified length
+
+                    allFiles.add(fileName);
+                }
+            }
+
+            for(String s : getDocumentList().split(",")){
+                if (allFiles.contains(s)){
+                    continue;
                 }
 
+                try(FileHandler fileHandler = new FileHandler(s + ".txt")){
+                    int length = fileHandler.read().length;
+
+                    reply += ",";
+                    reply += s + ":";                                   //filename
+                    reply += length + ":";                              //number of transformations in the hash
+                    reply += fileHandler.hash(length);                  //hash of contents to the specified length
+                }
             }
             reply = reply.replaceFirst(",","") + "]";
             recoverer.dataOutputStream.writeUTF(reply);
