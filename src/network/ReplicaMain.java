@@ -353,11 +353,7 @@ public class ReplicaMain implements Runnable{
                     List replicaFilesList = Arrays.asList(replicaFiles[i]);
 
                     if (replicaFilesList.contains(fileName)){
-
-                        System.err.println("DEBUG " + theirTN + ":" + ownTN);
                         theirTN = replicaTNs[i][replicaFilesList.indexOf(fileName)];
-
-                        System.err.println("DEBUG " + theirTN + ":" + ownTN);
                     }
 
 
@@ -369,6 +365,7 @@ public class ReplicaMain implements Runnable{
                         if (theirTN < ownTN) {
                             //replace their file
                             sendUTF("replace " + fileName + ":" + Arrays.toString(Arrays.copyOfRange(fileHandler.read(), 0, ownTN)), currentReplica);
+                            sendUTF("replace " + fileName + ":" + Arrays.toString(Arrays.copyOfRange(fileHandler.read(), 0, ownTN)), proxy);
                         }
                         //and their file is larger or same size
                         else {
@@ -388,6 +385,7 @@ public class ReplicaMain implements Runnable{
                         if (theirTN < ownTN) {
                             //send the difference
                             sendUTF("bundle " + fileName.replaceFirst(".txt", "") + " " + Arrays.toString(Arrays.copyOfRange(fileHandler.read(), theirTN, ownTN)), currentReplica);
+                            sendUTF("bundle " + fileName.replaceFirst(".txt", "") + " " + Arrays.toString(Arrays.copyOfRange(fileHandler.read(), theirTN, ownTN)), proxy);
                             //and their file is bigger
                         } else if (ownTN < theirTN) {
                             //request the difference
