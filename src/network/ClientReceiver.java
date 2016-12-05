@@ -35,11 +35,12 @@ public class ClientReceiver implements Runnable {
 			try {
 				input = dataInputStream.readUTF();
 				if(Client.debugging) {
-					System.out.println("input: " + input);
+					System.out.println("input: " + input + ".");
 				}
 				
 				if(input.startsWith("bundle")) {
-					Client.performIncomingUpdates(input);
+					if(input.split(" ")[1].compareTo("null") != 0)
+						Client.performIncomingUpdates(input);
 					continue;
 				} else if(input.startsWith("documents")) {
 					manageListOfDocuments(input);

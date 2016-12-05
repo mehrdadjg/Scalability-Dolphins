@@ -67,7 +67,6 @@ public class Client{
     			if(isInteger(segments[1])) {
     				host = segments[0];
     				port = Integer.parseInt(segments[1]);
-    				
     			}
     		}
     	} catch(Exception e) {

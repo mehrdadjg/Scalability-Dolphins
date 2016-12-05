@@ -433,6 +433,7 @@ public class ReplicaMain implements Runnable{
      * @throws IOException If the connection is not open
      */
     void operationTransformations(String doc_name, int beginIndex, int endIndex, SocketStreamContainer socketStreamContainer) throws IOException {
+    	System.out.println("ReplicaMain.java");
     	FileHandler fileHandler = new FileHandler(doc_name + ".txt");
         sendUTF("bundle " + doc_name + " " + Arrays.toString(Arrays.copyOfRange(fileHandler.read(), beginIndex, endIndex)), socketStreamContainer);
     }

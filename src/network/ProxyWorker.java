@@ -89,7 +89,7 @@ public class ProxyWorker implements Runnable{
     	if(msg.split(" ")[1].compareTo("null") != 0) {
     		recoveryManager.recover(this, msg.split(" ")[1], Integer.parseInt(msg.split(" ")[2]));
     	} else {
-    		sendUTF("bundle []");
+    		sendUTF("bundle null []");
     	}
     }
 

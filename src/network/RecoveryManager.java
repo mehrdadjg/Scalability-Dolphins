@@ -47,7 +47,10 @@ class RecoveryManager {
 
                 int TNmax;
                 if (masterConnection.dataInputStream.available() > 0){
-                    TNmax = Integer.parseInt(masterConnection.dataInputStream.readUTF().split(" ")[1]);
+                	String tn_response = masterConnection.dataInputStream.readUTF();
+                	String tn = tn_response.substring(tn_response.indexOf("[") + 1, tn_response.indexOf("]")).split(":")[1];
+                	
+                    TNmax = Integer.parseInt(tn);
                 } else {
                     throw new IOException("replica timed out");
                 }

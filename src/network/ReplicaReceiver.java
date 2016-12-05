@@ -117,7 +117,8 @@ class ReplicaReceiver implements Runnable{
                             case "transformations" :
                                 //prepare yourself
                             	fileHandler = new FileHandler(msg.split(" ")[1] + ".txt");
-                                recoverer.dataOutputStream.writeUTF("bundle " + msg.split(" ")[1] + " " + Arrays.toString(Arrays.copyOfRange(fileHandler.read(), Integer.parseInt(msg.split(" ")[1]), Integer.parseInt(msg.split(" ")[2]))));
+                            	String output = "bundle " + msg.split(" ")[1] + " " + Arrays.toString(Arrays.copyOfRange(fileHandler.read(), Integer.parseInt(msg.split(" ")[2]), Integer.parseInt(msg.split(" ")[3])));
+                                recoverer.dataOutputStream.writeUTF(output);
                                 recoverer.dataOutputStream.flush();
                                 fileHandler.close();
                 				fileHandler = null;
