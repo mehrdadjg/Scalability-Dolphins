@@ -93,7 +93,7 @@ public class Client{
     		dataInputStream = new DataInputStream(socket.getInputStream());
     		dataOutputStream = new DataOutputStream(socket.getOutputStream());
     		
-    		initialize();
+    		initialize(true);
     	} catch(IOException e) {
     		System.out.println("ERROR IN CLIENT. Cannot establish the required connections to the proxy.");
     		if(debugging) {
@@ -113,6 +113,14 @@ public class Client{
     	senderThread.start();
     }
     
+    public static void close() {
+    	TN = 0;
+    	approvedUpdates = new ArrayList<>();
+    	unapprovedUpdates = new ArrayList<>();
+    	current_doc = "null";
+    	message = "";
+    }
+    
     public static boolean reconnect() {
     	try {
     		Logger.log("Attempting to reconnect to the proxy...", LogType.Info);
@@ -123,7 +131,7 @@ public class Client{
 			dataOutputStream = new DataOutputStream(socket.getOutputStream());
 			
 			Logger.log("Requesting lost updates...", LogType.Info);
-			initialize();
+			initialize(true);
 			
 			Logger.log("Finalizing the process...", LogType.Info);
 			receiver.setInputStream(dataInputStream);
@@ -136,30 +144,36 @@ public class Client{
     	}
     }
     
-    public static void initialize() throws IOException {
+    public static void initialize(boolean readIncoming) throws IOException {
     	dataOutputStream.writeUTF("update " + current_doc + " " + TN);
-
-        //recieve and format the response
-		String reply = dataInputStream.readUTF();
-        reply =  reply.replaceFirst("bundle ", "");
-		String[] msgs = Pattern.compile("\\[|,|\\]").split(reply);
-		int count = msgs.length;
-		
-		System.out.println(Arrays.toString(msgs));
-		
-		for(int i = 0; i < count; i++) {
-			String msg = msgs[i];
-			if(msg.trim().matches("")) {
-				continue;
+    	
+    	if(readIncoming) {
+		    //recieve and format the response
+			String reply = dataInputStream.readUTF();
+		    reply =  reply.replaceFirst("bundle ", "");
+			String[] msgs = Pattern.compile("\\[|,|\\]").split(reply);
+			int count = msgs.length;
+			
+			System.out.println(Arrays.toString(msgs));
+			
+			for(int i = 0; i < count; i++) {
+				String msg = msgs[i];
+				if(msg.trim().matches("")) {
+					continue;
+				}
+				DocumentUpdate newUpdate = DocumentUpdate.fromString(msg);
+				if(newUpdate != null) {
+					if(newUpdate.getDocumentName().compareTo(Client.current_doc) != 0)
+						return;
+					performIncomingUpdate(newUpdate);
+				}
 			}
-			DocumentUpdate newUpdate = DocumentUpdate.fromString(msg);
-			if(newUpdate != null) {
-				performIncomingUpdate(newUpdate);
-			}
-		}
+    	}
 	}
 
 	public static void performIncomingUpdate(DocumentUpdate incomingUpdate) {
+		if(incomingUpdate.getDocumentName().compareTo(Client.current_doc) != 0)
+			return;
     	if(incomingUpdate.getID().compareTo(Client.id) != 0) {
     		TN++;
     		performOutgoingUpdate(incomingUpdate);
@@ -170,7 +184,8 @@ public class Client{
 	
 	public static void performIncomingUpdates(String updates) {
 		String[] msgs = Pattern.compile("\\[|,|\\]").split(updates);
-		System.out.println(Arrays.toString(msgs));
+		if(Client.debugging)
+			System.out.println(Arrays.toString(msgs));
 		int count = msgs.length;
 		for(int i = 0; i < count; i++) {
 			String msg = msgs[i];
@@ -179,6 +194,8 @@ public class Client{
 			}
 			DocumentUpdate newUpdate = DocumentUpdate.fromString(msg);
 			if(newUpdate != null) {
+				if(newUpdate.getDocumentName().compareTo(Client.current_doc) != 0)
+					return;
 				performIncomingUpdate(newUpdate);
 			}
 		}

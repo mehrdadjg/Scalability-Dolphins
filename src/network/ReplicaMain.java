@@ -104,7 +104,7 @@ public class ReplicaMain implements Runnable{
                             case "transformations":
                                 operationTransformations(msg.split(" ")[1], Integer.parseInt(msg.split(" ")[2]), Integer.parseInt(msg.split(" ")[3]), proxy);
                                 break;
-                            case "create":
+                            case "open":
                             	new FileHandler(msg.split(" ")[1] + ".txt");
                             	break;
                             default:

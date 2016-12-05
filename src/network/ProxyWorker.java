@@ -67,7 +67,7 @@ public class ProxyWorker implements Runnable{
             case "list":
             	operationList(msg);
             	break;
-            case "create":
+            case "open":
             	operationCreate(msg);
             	break;
             case "error" : case "error:" :

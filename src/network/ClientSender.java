@@ -39,10 +39,9 @@ public class ClientSender implements Runnable {
 			case CommandLine:
 				if(firstRun) {
 					System.out.println("The follwing is a list of commands that you can use:");
-					System.out.println("list    : Returns a list of all the editable documents for you to choose from.");
-					System.out.println("create x: Prompts to create a document with name x and opens it for edit.");
-					System.out.println("open x  : Opens the document with name x for edit, if it exists. None of these commands work when you are editing a document. You can close a file by pressing enter twice in a row.");
-					System.out.println("help    : shows this message again.");
+					System.out.println("list  : Returns a list of all the editable documents for you to choose from.");
+					System.out.println("open x: Opens a document for editing. If it doesn't exist it will create the document.");
+					System.out.println("help  : shows this message again.");
 					
 					firstRun = false;
 				} else {
@@ -59,7 +58,8 @@ public class ClientSender implements Runnable {
 						
 						waitForAnswer();
 					} catch (IOException e) {
-						System.out.println("ERROR IN CLIENT. Cannot write to the outgoing stream.");
+						if(Client.debugging)
+							System.out.println("ERROR IN CLIENT. Cannot write to the outgoing stream.");
 						if(Client.debugging) {
 							e.printStackTrace();
 						} else {
@@ -86,8 +86,8 @@ public class ClientSender implements Runnable {
 					}
 					this.response		= null;
 					this.responseMsg	= null;
-				} else if(line.toLowerCase().startsWith("create ")) {
-					String doc_name = line.substring(7);
+				} else if(line.toLowerCase().startsWith("open ")) {
+					String doc_name = line.substring(5);
 					if(doc_name.trim().compareTo("") == 0) {
 						System.out.println("... Unacceptable document name.");
 						break;
@@ -104,7 +104,7 @@ public class ClientSender implements Runnable {
 					}
 					
 					try {
-						dataOutputStream.writeUTF("create " + doc_name);
+						dataOutputStream.writeUTF("open " + doc_name);
 						dataOutputStream.flush();
 						
 						waitForAnswer();
@@ -123,7 +123,7 @@ public class ClientSender implements Runnable {
 						Client.current_doc = doc_name;
 						status = EditorStatus.Editing;
 						try {
-							Client.initialize();
+							Client.initialize(false);
 						} catch (IOException e) {
 							// TODO Auto-generated catch block
 							e.printStackTrace();
@@ -133,10 +133,8 @@ public class ClientSender implements Runnable {
 					}
 					this.response		= null;
 					this.responseMsg	= null;
-				} else if(line.toLowerCase().startsWith("open ")) {
-					
 				} else if(line.toLowerCase().startsWith("help")) {
-					
+					firstRun = true;
 				} else {
 					System.out.println("... Unrecognizable command.");
 				}
@@ -156,6 +154,7 @@ public class ClientSender implements Runnable {
 				Client.performOutgoingUpdate(outgoingUpdate);
 					
 				String outgoingUpdateString = outgoingUpdate.toString();
+				if(Client.debugging)
 				System.out.println("outgoing: " + outgoingUpdateString);
 					
 				Client.addUnapprovedUpdate(outgoingUpdate);
@@ -184,6 +183,7 @@ public class ClientSender implements Runnable {
 				line = scanner.nextLine();
 				
 				if(line.compareTo("") == 0) {
+					Client.close();
 					status = EditorStatus.CommandLine;
 					System.out.println("Editing ended.");
 				} else {
