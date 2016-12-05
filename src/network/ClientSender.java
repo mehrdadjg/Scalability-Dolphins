@@ -69,7 +69,10 @@ public class ClientSender implements Runnable {
 					}
 					
 					if(responseMsg.compareTo("list_received") == 0) {
-						String[] list = (String[]) response;
+						String[] list = new String[0];
+						if (response != null){
+							list = (String[]) response;
+						}
 						
 						if(list.length > 0) {
 							System.out.println("... The documents are as listed below:");
@@ -78,7 +81,7 @@ public class ClientSender implements Runnable {
 								System.out.println("... " + (i+1) + ". " + list[i]);
 							}
 						} else {
-							System.out.println("... The documents are as listed below:");
+							System.out.println("There are currently no documents. create one with open <name>");
 						}
 					} else {
 						status = EditorStatus.Error;
