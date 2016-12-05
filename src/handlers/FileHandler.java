@@ -7,7 +7,7 @@ import java.util.Arrays;
 /**
  * A handler for the storage layer. This one stores in a file in the current working directory of the program.
  */
-public class FileHandler {
+public class FileHandler implements AutoCloseable{
 
 	private File file;
 	private FileWriter fileWriter;
