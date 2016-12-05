@@ -23,7 +23,6 @@ class ReplicaReceiver implements Runnable{
 
     /**
      * Initializes a replica receiver with a given fileHandler and port number to use for the ServerSocket
-     * @param fileHandler The handler for the file that this receiver will be providing
      * @param port The port number to listen to for incoming connection requests
      */
     ReplicaReceiver(ReplicaMain replicaMain, int port){
@@ -81,7 +80,7 @@ class ReplicaReceiver implements Runnable{
                     if (recoverer.dataInputStream.available() > 0){
                         String msg = recoverer.dataInputStream.readUTF();
                         
-                        FileHandler fileHandler = null;
+                        FileHandler fileHandler;
                         switch (msg.split(" ")[0]) {
                             case "query_tn" :
                                 //reply with the current TN
@@ -90,20 +89,18 @@ class ReplicaReceiver implements Runnable{
                             		recoverer.dataOutputStream.writeUTF("tn [" + msg.split(" ")[1] + ":" + (fileHandler.read().length) + "]");
                             		recoverer.dataOutputStream.flush();
                             		fileHandler.close();
-                            		fileHandler = null;
                             	} else {
                             		File root = new File(".");
                             		File[] docs = root.listFiles();
                             		String tns = "";
-                            		for(int i = 0; i < docs.length; i++) {
-                            			if(docs[i].isFile() && docs[i].getName().endsWith(".txt")) {
-                            				String name = docs[i].getName().substring(0, docs[i].getName().length() - 3);
-                            				fileHandler = new FileHandler(docs[i].getName());
-                            				tns += (name + ":" + fileHandler.read().length + ",");
-                            				fileHandler.close();
-                            				fileHandler = null;
-                            			}
-                            		}
+                                    for (File doc : docs) {
+                                        if (doc.isFile() && doc.getName().endsWith(".txt")) {
+                                            String name = doc.getName().substring(0, doc.getName().length() - 3);
+                                            fileHandler = new FileHandler(doc.getName());
+                                            tns += (name + ":" + fileHandler.read().length + ",");
+                                            fileHandler.close();
+                                        }
+                                    }
                             		
                             		if(tns.endsWith(",")) {
                             			recoverer.dataOutputStream.writeUTF("tn [" + tns.substring(0, tns.length() - 1) + "]");
@@ -121,7 +118,6 @@ class ReplicaReceiver implements Runnable{
                                 recoverer.dataOutputStream.writeUTF(output);
                                 recoverer.dataOutputStream.flush();
                                 fileHandler.close();
-                				fileHandler = null;
                                 break;
                             case "bundle" :
                                 replicaMain.operationBundle(msg);
@@ -137,8 +133,7 @@ class ReplicaReceiver implements Runnable{
                                 break;
                             default:
                                 //Discard messages that are not recognized as part of the protocol
-                                recoverer.dataOutputStream.writeUTF("error:incorrect format");
-                                recoverer.dataOutputStream.flush();
+                                System.out.println("error:incorrect format");
                                 break;
                         }
                         timer.startTimer(timeout); //start the timer again every time a message is received
@@ -158,10 +153,10 @@ class ReplicaReceiver implements Runnable{
 
                 File[] files = location.listFiles();
 
-                for(int i = 0; i < files.length; i++) {
-                    if(files[i].isFile()) {
-                        if(files[i].getName().endsWith(".txt")) {
-                            output += (files[i].getName().substring(0, files[i].getName().length() - 4)) + ",";
+                for (File file : files) {
+                    if (file.isFile()) {
+                        if (file.getName().endsWith(".txt")) {
+                            output += (file.getName().substring(0, file.getName().length() - 4)) + ",";
                         }
                     }
                 }

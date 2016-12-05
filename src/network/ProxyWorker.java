@@ -120,7 +120,11 @@ public class ProxyWorker implements Runnable{
         GroupManager<ProxyReplicaWorker> groupManager = ProxyMain.replicaGroupManager;
         
         groupManager.broadcast(msg);
-        sendUTF("done");
+        if (groupManager.replicasOnline()){
+            sendUTF("done");
+        } else {
+            sendUTF("error: system offline");
+        }
     }
 
     /**

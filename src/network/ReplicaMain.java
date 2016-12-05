@@ -109,7 +109,7 @@ public class ReplicaMain implements Runnable{
                             	break;
                             default:
                                 //Discard messages that are not recognized as part of the protocol
-                                sendUTF("error:incorrect format", proxy);
+                                //System.out.println("error:incorrect format");
                                 break;
                         }
                     }

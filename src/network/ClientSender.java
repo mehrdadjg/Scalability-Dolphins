@@ -131,7 +131,10 @@ public class ClientSender implements Runnable {
 							// TODO Auto-generated catch block
 							e.printStackTrace();
 						}
-					} else {
+					} else if (this.responseMsg.compareTo("error") == 0){
+						continue;
+					}
+					else {
 						System.out.println("... Could not create the document.");
 					}
 					this.response		= null;

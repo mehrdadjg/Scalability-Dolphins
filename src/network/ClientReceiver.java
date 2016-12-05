@@ -48,6 +48,10 @@ public class ClientReceiver implements Runnable {
 				} else if(input.startsWith("done")) {
 					sendDoneToSender();
 					continue;
+				} else if (input.startsWith("error")){
+					Logger.log("proxy refused previous request with message: " + input);
+					sendErrorToSender();
+					continue;
 				}
 			} catch(IOException e) {
 				Logger.log("ERROR IN CLIENT. Cannot read from the incoming stream.", LogType.Error);
@@ -74,6 +78,10 @@ public class ClientReceiver implements Runnable {
 
 	private void sendDoneToSender() {
 		Client.respondToSender("done", null);
+	}
+
+	private void sendErrorToSender() {
+		Client.respondToSender("error", null);
 	}
 
 	private void manageListOfDocuments(String input) {
