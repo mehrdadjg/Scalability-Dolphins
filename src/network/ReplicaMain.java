@@ -246,10 +246,10 @@ public class ReplicaMain implements Runnable{
         return replies;
     }
 
-    private void hashBroadcast(Vector<SocketStreamContainer> replicas, int[] replicaTNs){
+    private void hashBroadcast(Vector<SocketStreamContainer> replicas){
         File root = new File(".");
         File[] docs = root.listFiles();
-        String hashes = "hash ";
+        String hashes = "hash [";
         for(int i = 0; i < docs.length; i++) {
             if(docs[i].isFile() && docs[i].getName().endsWith(".txt")) {
                 String name = docs[i].getName().substring(0, docs[i].getName().length() - 3);
@@ -266,9 +266,9 @@ public class ReplicaMain implements Runnable{
         }
 
         if(hashes.endsWith(",")) {
-            hashes = ("[" + hashes.substring(0, hashes.length() - 1) + "]");
+            hashes = (hashes.substring(0, hashes.length() - 1) + "]");
         } else {
-            hashes = ("[" + hashes + "]");
+            hashes = (hashes + "]");
         }
 
         broadcast(hashes, replicas);
@@ -299,26 +299,39 @@ public class ReplicaMain implements Runnable{
         broadcast("query_tn", replicas);
 
         //wait
-        try {Thread.currentThread().wait(1000);} catch (InterruptedException e) {e.printStackTrace();}
+        TimeoutTimer timer = new TimeoutTimer();
+        timer.startTimer(1000);
+        while (!timer.isTimeoutFlag()){
+            Thread.yield();
+        }
 
         //read the replies from the replicas
         String[] replies = readFromMultipleConnections(replicas);
 
         //parse the replies into integers
-        int[] replicaTNs = new int[replicas.size()];
+        int[][] replicaTNs = new int[replicas.size()][];
         for (int i = 0; i < replies.length; i++) {
-            replicaTNs[i] = Integer.parseInt(replies[i].split(" ")[1]);
+            String[] currentReplicaTN = Pattern.compile("\\[|,|\\]").split(replies[i].replaceFirst("tn ", ""));
+            replicaTNs[i] = new int[currentReplicaTN.length];
+            for (int j = 1; j < replicaTNs[i].length; j++){
+                replicaTNs[i][j] = Integer.parseInt(currentReplicaTN[j].split(":")[1]);
+            }
         }
 
         //query all replicas for their file hashes
-        hashBroadcast(replicas, replicaTNs);
+        hashBroadcast(replicas);
 
         //wait
-        try {Thread.currentThread().wait(1000);} catch (InterruptedException e) {e.printStackTrace();}
+        timer = new TimeoutTimer();
+        timer.startTimer(1000);
+        while (!timer.isTimeoutFlag()){
+            Thread.yield();
+        }
 
         //receive the hashes from the replicas
         String[] hashes = readFromMultipleConnections(replicas);
 
+        System.err.println(Arrays.toString(hashes));
         //for each replica...
         for(int i = 0; i < replicas.size(); i++){
             String currentReply = hashes[i].replaceFirst("signature ", "");

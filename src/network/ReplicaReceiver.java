@@ -1,6 +1,7 @@
 package network;
 
 import handlers.FileHandler;
+import util.Logger;
 import util.Resources;
 import util.SocketStreamContainer;
 import util.TimeoutTimer;
@@ -12,6 +13,7 @@ import java.net.SocketTimeoutException;
 import java.util.Arrays;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.regex.Pattern;
 
 /**
  * A server socket handler to allow the replica to listen on a different channel for incoming update requests and queries
@@ -79,6 +81,9 @@ class ReplicaReceiver implements Runnable{
                 try {
                     if (recoverer.dataInputStream.available() > 0){
                         String msg = recoverer.dataInputStream.readUTF();
+                        if (Resources.DEBUG){
+                            Logger.log("Received message > " + msg);
+                        }
                         
                         FileHandler fileHandler;
                         switch (msg.split(" ")[0]) {
@@ -124,7 +129,7 @@ class ReplicaReceiver implements Runnable{
                             case "replace" :
                                 replicaMain.operationReplace(msg);
                             case "hash":
-                                operationHash(msg.split(" ")[1], Integer.parseInt(msg.split(" ")[2]), recoverer);
+                                operationHash(msg);
                                 break;
                             case "list":
                                 String list = getDocumentList();
@@ -167,15 +172,33 @@ class ReplicaReceiver implements Runnable{
             }
         }
         
-		private void operationHash(String fileName, int length, SocketStreamContainer socketStreamContainer) throws IOException{
-			FileHandler fileHandler = new FileHandler(fileName);
+		private void operationHash(String msg) throws IOException{
+            String[] hashRequests = Pattern.compile("\\[|,|\\]").split(msg.replaceFirst("hash ",""));
             String reply = "signature ";                        //message header
-            reply += fileHandler.getFileName() + " ";           //filename
-            reply += length + " ";                              //number of transformations in the hash
-            reply += fileHandler.hash(length);                  //hash of contents to the specified length
+            for (String s : hashRequests){
+                if (s.length() == 0){
+                    continue;
+                }
+                String fileName = s.split(":")[0];
+                int length = Integer.parseInt(s.split(":")[1]);
+
+                try(FileHandler fileHandler = new FileHandler(fileName)){
+                    length = Math.min(length, fileHandler.read().length);
+
+                    reply += ",";
+                    reply += fileHandler.getFileName() + ":";           //filename
+                    reply += length + ":";                              //number of transformations in the hash
+                    reply += fileHandler.hash(length);                  //hash of contents to the specified length
+                }
+
+            }
+
+            reply = reply.replaceFirst(",","");
             recoverer.dataOutputStream.writeUTF(reply);
             recoverer.dataOutputStream.flush();
-            fileHandler.close();
+
+
+
         }
     }
 }
