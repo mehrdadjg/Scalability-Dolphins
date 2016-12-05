@@ -1,17 +1,20 @@
 package launcher;
 
-import network.ServerMain;
+import network.ProxyMain;
+import util.Resources;
 
+import java.io.IOException;
 import java.util.Scanner;
 
+import static java.lang.Thread.yield;
 /**
  * A launcher for a proxy server
  * The purpose is to accept connections, rebroadcast received packets to all connected clients, and promote a back up replica if the leader fails
  * This should remain as simple as possible to minimize the chances of failure
  */
 public class Proxy{
-    private static int clientPort = 22;
-    private static int replicaPort = 21;
+    private static int clientPort = Resources.CLIENTPORT;
+    private static int replicaPort = Resources.REPLICAPORT;
 
     public static void main(String[] args){
         if (args.length > 0){
@@ -21,17 +24,32 @@ public class Proxy{
             }
         }
 
-        ServerMain serverMain = new ServerMain(clientPort, replicaPort);
-        new Thread(serverMain).start();
+        ProxyMain proxyMain = new ProxyMain(clientPort, replicaPort);
+        Thread proxyThread = new Thread(proxyMain);
+        proxyThread.start();
+
 
         //Await Quit command to shutdown
         Scanner scanner = new Scanner(System.in);
-        String userInput;
+        String userInput = "";
         do {
-            userInput = scanner.nextLine();
+            //check input before reading to avoid blocking
+            try {
+                if (System.in.available() > 0){
+                    userInput = scanner.nextLine();
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            //determine if the main proxy thread has terminated on it's own and finish the application
+            if (proxyThread.getState().compareTo(Thread.State.TERMINATED) == 0){
+                break;
+            }
+            yield();
         } while (userInput.compareTo("Quit") != 0);
 
-        serverMain.shutdown();
+        proxyMain.shutdown();
         scanner.close();
     }
 }

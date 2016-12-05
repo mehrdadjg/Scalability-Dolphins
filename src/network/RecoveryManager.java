@@ -1,138 +1,91 @@
 package network;
 
 
+import util.Resources;
+import util.SocketStreamContainer;
+import util.TimeoutTimer;
+
 import java.io.IOException;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.Vector;
+import java.net.Socket;
 
 /**
  * Helps a client or replica catch up after connecting
  */
 class RecoveryManager {
-    private Vector<ServerReplicaWorker> serverWorkers = new Vector<>(); //A list of available replicas to consult
-    String recoveryList = emptyList; //A mailbox for the list of changes needed for a recovery that is set by a ServerReplicaWorker in a different thread
-    private boolean timeoutFlag = false;
-    private final static int defaultTimout = 500;
-    private final static String emptyList = "[]";
-    Timer timer;
+    private GroupManager<ProxyReplicaWorker> groupManager; //A list of available replicas to consult
+    private String recoveryList = emptyList; //A mailbox for the list of changes needed for a recovery that is set by a ProxyReplicaWorker in a different thread
+    private final static int defaultTimeout = Resources.TIMEOUT;
+    private final static String emptyList = "bundle []";
+    private TimeoutTimer timer = new TimeoutTimer();
+    private int recoveryPort = Resources.RECOVERYPORT;
 
-    RecoveryManager(Vector<ServerReplicaWorker> serverWorkers){
-        this.serverWorkers = serverWorkers;
+    RecoveryManager(GroupManager<ProxyReplicaWorker> groupManager){
+        this.groupManager = groupManager;
     }
 
-    void recover(ServerWorker recoverer, int TNold){
+    void recover(ProxyWorker recoverer, String doc_name, int TNold){
+
         boolean recoveryComplete = false;
-
-        for (ServerWorker s : serverWorkers){
-            if (!s.isConnected()){
-                s.shutdown();
-                serverWorkers.remove(s);
-            }
-        }
-
         while (!recoveryComplete){
-            //if no other servers are online, abort
-
-            if (serverWorkers.size() > 0 && recoverer != serverWorkers.firstElement()) {
-
-                //request all replica TNs
-                for (ServerReplicaWorker s : serverWorkers) {
-
-                    if (s.equals(recoverer)) {
-                        //Skip the recoverer when checking for current TNs
-                        continue;
-                    }
-                    s.knownTN = -1;
-
-                    try {
-                        s.sendUTF("query_tn");
-                    } catch (IOException e) {
-                        // replica has failed, remove it from the list of replicas and shut it down
-                        serverWorkers.remove(s);
-                        s.shutdown();
-                        //e.printStackTrace();
-                    }
-                }
-
-                //pick server with highest TN
-                ServerReplicaWorker master = null;//serverWorkers.firstElement();
-
-
-                startTimer();
-
-                while (!timeoutFlag) {
-                    Thread.yield();
-                }
-
-                int TNmax = -1;
-                for (ServerReplicaWorker s : serverWorkers) {
-
-                    if (s.equals(recoverer)) {
-                        //Skip the recoverer when checking for current TNs
-                        continue;
-                    }
-
-
-                    if (s.knownTN > TNmax) {
-                        master = s;
-                        TNmax = s.knownTN;
-                    }
-                }
-
-
-                if (master != null && TNmax > TNold) {
-                    //retrieve all missed changes
-                    try {
-                        master.sendUTF("transformations " + TNold + " " + TNmax);
-                    } catch (IOException e) {
-                        //remove failed server and restart recovery if the master has failed
-                        serverWorkers.remove(master);
-                        master.shutdown();
-                        continue;
-                        //e.printStackTrace();
-                    }
-                }
-
-                //wait for a reply
-                startTimer();
-                while (!timeoutFlag && (recoveryList.equals(emptyList))) {
-                    Thread.yield();
-                }
+            //if no replicas are online, abort
+            if (!groupManager.replicasOnline()){
+                break;
             }
 
-            //forward changes to recoverer
-            try {
-                recoverer.sendUTF(recoveryList);
+            //pick any replica
+            ProxyReplicaWorker master = groupManager.firstElement();
+            String masterIP = master.toString().split(":")[0];
+
+            try (SocketStreamContainer masterConnection = new SocketStreamContainer(new Socket(masterIP, recoveryPort))){
+                //Query the chosen replica
+                masterConnection.dataOutputStream.writeUTF("query_tn " + doc_name);
+                masterConnection.dataOutputStream.flush();
+
+                //setup a timer
+                timer.startTimer(defaultTimeout);
+                while (!timer.isTimeoutFlag() && masterConnection.dataInputStream.available() == 0) {Thread.yield();}
+
+                int TNmax;
+                if (masterConnection.dataInputStream.available() > 0){
+                	String tn_response = masterConnection.dataInputStream.readUTF();
+                	String tn = tn_response.substring(tn_response.indexOf("[") + 1, tn_response.indexOf("]")).split(":")[1];
+                	
+                    TNmax = Integer.parseInt(tn);
+                } else {
+                    throw new IOException("replica timed out");
+                }
+
+                masterConnection.dataOutputStream.writeUTF("transformations " + doc_name + " " + TNold + " " + TNmax);
+                masterConnection.dataOutputStream.flush();
+
+                timer.startTimer(defaultTimeout);
+                while (!timer.isTimeoutFlag() && masterConnection.dataInputStream.available() == 0) {Thread.yield();}
+
+                if (masterConnection.dataInputStream.available() > 0){
+                    recoveryList = masterConnection.dataInputStream.readUTF();
+                } else {
+                    throw new IOException("replica timed out");
+                }
+
             } catch (IOException e) {
-                //recoverer has failed again
-                recoverer.shutdown();
-                break;
+                groupManager.remove(master);
+                master.shutdown();
+                continue;
                 //e.printStackTrace();
             }
 
             recoveryComplete = true;
-
         }
 
-        if (recoveryComplete){
-            recoverer.resumeAfterRecovery();
+        try {
+            recoverer.sendUTF(recoveryList);
+        } catch (IOException e) {
+            recoverer.shutdown();
+            //e.printStackTrace();
         }
 
         //reset and prepare for the next request
         recoveryList = emptyList;
-
-    }
-
-    private void startTimer(){
-        timeoutFlag = false;
-        timer = new Timer();
-        timer.schedule(new TimerTask() {
-            @Override
-            public void run() {
-                timeoutFlag = true;
-                timer.cancel();
-            }
-        }, defaultTimout);
+        timer.reset();
     }
 }

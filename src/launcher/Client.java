@@ -2,6 +2,9 @@ package launcher;
 
 import util.DocumentUpdate;
 import util.DocumentUpdate.PositionType;
+import util.Logger.LogType;
+import util.Logger.ProcessType;
+import util.Logger;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -18,6 +21,7 @@ import java.util.regex.Pattern;
 
 import network.ClientReceiver;
 import network.ClientSender;
+import util.Resources;
 
 /**
  * Launcher for a client application.
@@ -32,7 +36,7 @@ public class Client{
     private static DataOutputStream	dataOutputStream	= null;
     
     private static String 			host				= "127.0.0.1";
-    private static int    			port 				= 22;			// TODO Link this to Server#port
+    private static int    			port 				= Resources.CLIENTPORT;
     
     private static String			message 			= "";
     
@@ -41,11 +45,16 @@ public class Client{
     private static Thread			receiverThread		= null;
     private static Thread			senderThread		= null;
     
-    public static final boolean		debugging			= true;
+    public	static final boolean	debugging			= Resources.DEBUG;
     
-    public static final String		id					= Client.getSelfMAC() + new Random().nextInt();
+    public	static String			id					= Client.getSelfMAC() + new Random().nextInt();
+    public	static String			current_doc			= "null";
+    
+    private static ClientReceiver	receiver			= null;
+    private static ClientSender		sender				= null;
     
     public static void main(String[] args){
+    	Logger.initialize(ProcessType.Client);
     	System.out.println("The default proxy server address is " + host + ":" + String.valueOf(port));
     	System.out.println("If this is incorrect give the actual address using the same format," + 
     			" otherwise type anything.");
@@ -58,11 +67,10 @@ public class Client{
     			if(isInteger(segments[1])) {
     				host = segments[0];
     				port = Integer.parseInt(segments[1]);
-    				
     			}
     		}
     	} catch(Exception e) {
-    		System.err.println("ERROR IN CLIENT. The input could not be processed.");
+    		System.out.println("ERROR IN CLIENT. The input could not be processed.");
 			e.printStackTrace();
     	}
     	
@@ -72,7 +80,7 @@ public class Client{
     		socket = new Socket(host, port);
     		System.out.println("Connected.");
     	} catch (IOException e) {
-    		System.err.println("ERROR IN CLIENT. Cannot open a socket to the proxy server.");
+    		System.out.println("ERROR IN CLIENT. Cannot open a socket to the proxy server.");
     		if(debugging) {
     			e.printStackTrace();
     		} else {
@@ -85,9 +93,9 @@ public class Client{
     		dataInputStream = new DataInputStream(socket.getInputStream());
     		dataOutputStream = new DataOutputStream(socket.getOutputStream());
     		
-    		initialize();
+    		initialize(true);
     	} catch(IOException e) {
-    		System.err.println("ERROR IN CLIENT. Cannot establish the required connections to the proxy.");
+    		System.out.println("ERROR IN CLIENT. Cannot establish the required connections to the proxy.");
     		if(debugging) {
     			e.printStackTrace();
     		} else {
@@ -95,8 +103,8 @@ public class Client{
     		}
     	}
     	
-    	ClientReceiver	receiver	= new ClientReceiver(dataInputStream, approvedUpdates, unapprovedUpdates);
-    	ClientSender	sender		= new ClientSender(dataOutputStream);
+    	receiver	= new ClientReceiver(dataInputStream, approvedUpdates, unapprovedUpdates);
+    	sender		= new ClientSender(dataOutputStream);
     	
     	receiverThread	= new Thread(receiver);
     	senderThread	= new Thread(sender);
@@ -105,28 +113,68 @@ public class Client{
     	senderThread.start();
     }
     
-    private static void initialize() throws IOException {
-    	dataOutputStream.writeUTF("update 0");
-
-        //recieve and format the response
-		String[] msgs = Pattern.compile("\\[|,|\\]").split(dataInputStream.readUTF());
-		int count = msgs.length;
-		
-		System.out.println(Arrays.toString(msgs));
-		
-		for(int i = 0; i < count; i++) {
-			String msg = msgs[i];
-			if(msg.trim().matches("")) {
-				continue;
+    public static void close() {
+    	id = Client.getSelfMAC() + new Random().nextInt();
+    	TN = 0;
+    	approvedUpdates = new ArrayList<>();
+    	unapprovedUpdates = new ArrayList<>();
+    	current_doc = "null";
+    	message = "";
+    }
+    
+    public static boolean reconnect() {
+    	try {
+    		Logger.log("Attempting to reconnect to the proxy...", LogType.Info);
+	    	socket = new Socket(host, port);
+			
+	    	Logger.log("Initializing streams...", LogType.Info);
+			dataInputStream = new DataInputStream(socket.getInputStream());
+			dataOutputStream = new DataOutputStream(socket.getOutputStream());
+			
+			Logger.log("Requesting lost updates...", LogType.Info);
+			initialize(true);
+			
+			Logger.log("Finalizing the process...", LogType.Info);
+			receiver.setInputStream(dataInputStream);
+			sender.setOutputSender(dataOutputStream);
+			Logger.log("Reconnected...", LogType.Info);
+			return true;
+    	} catch(IOException e) {
+    		Logger.log("Reconnect failed.", LogType.Error);
+    		return false;
+    	}
+    }
+    
+    public static void initialize(boolean readIncoming) throws IOException {
+    	dataOutputStream.writeUTF("update " + current_doc + " " + TN);
+    	
+    	if(readIncoming) {
+		    //recieve and format the response
+			String reply = dataInputStream.readUTF();
+		    reply =  reply.replaceFirst("bundle ", "");
+			String[] msgs = Pattern.compile("\\[|,|\\]").split(reply);
+			int count = msgs.length;
+			
+			System.out.println(Arrays.toString(msgs));
+			
+			for(int i = 0; i < count; i++) {
+				String msg = msgs[i];
+				if(msg.trim().matches("")) {
+					continue;
+				}
+				DocumentUpdate newUpdate = DocumentUpdate.fromString(msg);
+				if(newUpdate != null) {
+					if(newUpdate.getDocumentName().compareTo(Client.current_doc) != 0)
+						return;
+					performIncomingUpdate(newUpdate);
+				}
 			}
-			DocumentUpdate newUpdate = DocumentUpdate.fromString(msg);
-			if(newUpdate != null) {
-				performIncomingUpdate(newUpdate);
-			}
-		}
+    	}
 	}
 
 	public static void performIncomingUpdate(DocumentUpdate incomingUpdate) {
+		if(incomingUpdate.getDocumentName().compareTo(Client.current_doc) != 0)
+			return;
     	if(incomingUpdate.getID().compareTo(Client.id) != 0) {
     		TN++;
     		performOutgoingUpdate(incomingUpdate);
@@ -137,7 +185,8 @@ public class Client{
 	
 	public static void performIncomingUpdates(String updates) {
 		String[] msgs = Pattern.compile("\\[|,|\\]").split(updates);
-		System.out.println(Arrays.toString(msgs));
+		if(Client.debugging)
+			System.out.println(Arrays.toString(msgs));
 		int count = msgs.length;
 		for(int i = 0; i < count; i++) {
 			String msg = msgs[i];
@@ -146,6 +195,8 @@ public class Client{
 			}
 			DocumentUpdate newUpdate = DocumentUpdate.fromString(msg);
 			if(newUpdate != null) {
+				if(newUpdate.getDocumentName().compareTo(Client.current_doc) != 0)
+					return;
 				performIncomingUpdate(newUpdate);
 			}
 		}
@@ -164,23 +215,23 @@ public class Client{
     	}
     	
     	if(position == Client.message.length()) {
-    		if(outgoingUpdate.getChar() == DocumentUpdate.BACKSPACE) {
+    		if(outgoingUpdate.getString().compareTo(String.valueOf(DocumentUpdate.BACKSPACE)) == 0) {
     			if(Client.message.length() > 0) {
     				Client.message = Client.message.substring(0, Client.message.length() - 1);
     			}
     		} else {
-    			Client.message = Client.message + outgoingUpdate.getChar();
+    			Client.message = Client.message + outgoingUpdate.getString();
     		}
     	} else if(position == 0) {
-    		if(outgoingUpdate.getChar() != DocumentUpdate.BACKSPACE) {
-    			Client.message = outgoingUpdate.getChar() + Client.message;
+    		if(outgoingUpdate.getString().compareTo(String.valueOf(DocumentUpdate.BACKSPACE)) != 0) {
+    			Client.message = outgoingUpdate.getString() + Client.message;
     		}
     	} else {	// The update is happening at an index in the middle
-    		if(outgoingUpdate.getChar() == DocumentUpdate.BACKSPACE) {
+    		if(outgoingUpdate.getString().compareTo(String.valueOf(DocumentUpdate.BACKSPACE)) == 0) {
     			Client.message = Client.message.substring(0, position) +
     					Client.message.substring(position + 1);
     		} else {
-    			Client.message = Client.message.substring(0, position) + outgoingUpdate.getChar() +
+    			Client.message = Client.message.substring(0, position) + outgoingUpdate.getString() +
     					Client.message.substring(position);
     		}
     	}
@@ -227,4 +278,23 @@ public class Client{
     public static void removeUnapprovedUpdate(DocumentUpdate update) {
     	unapprovedUpdates.remove(update);
     }
+    
+    /**
+     * Sends a string to the proxy. This message is not crucial to the functionality
+     * of the process.
+     * @param msg The message to be sent to the proxy.
+     */
+	public static void informProxy(String msg) {
+		try {
+			dataOutputStream.writeUTF(msg);
+			Logger.log("Message sent to proxy: " + msg, LogType.Info);
+		} catch (IOException e) {
+			Logger.log("Failed sending a message to the proxy.", LogType.Warning);
+			Logger.log("The failed message: " + msg, LogType.Info);
+		}
+	}
+
+	public static void respondToSender(String responseMsg, Object response) {
+		sender.respondWith(responseMsg, response);
+	}
 }
