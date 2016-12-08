@@ -26,6 +26,7 @@ public class ClientSender implements Runnable {
     	Editing,
     	Error,
     	AskingToEndEditing,
+		Fuzz,
     }
     
 	public ClientSender(DataOutputStream dataOutputStream) {
@@ -45,6 +46,7 @@ public class ClientSender implements Runnable {
 					System.out.println("The follwing is a list of commands that you can use:");
 					System.out.println("list  : Returns a list of all the editable documents for you to choose from.");
 					System.out.println("open x: Opens a document for editing. If it doesn't exist it will create the document.");
+					System.out.println("fuzz x: experiments");
 					System.out.println("help  : shows this message again.");
 					
 					firstRun = false;
@@ -145,7 +147,59 @@ public class ClientSender implements Runnable {
 					}
 					this.response		= null;
 					this.responseMsg	= null;
-				} else if(line.toLowerCase().startsWith("help")) {
+				} else if (line.toLowerCase().startsWith("fuzz")){
+
+					String doc_name = line.substring(5);
+					if(doc_name.trim().compareTo("") == 0) {
+						System.out.println("... Unacceptable document name.");
+						break;
+					} else {
+						if(doc_name.contains("<") || doc_name.contains(">") || doc_name.contains(":") || doc_name.contains("\"") ||
+								doc_name.contains("/") || doc_name.contains("\\") || doc_name.contains("|") || doc_name.contains("?") ||
+								doc_name.contains("*")) {
+							System.out.println("... Unacceptable document name.");
+							break;
+						} else if(doc_name.compareTo("null") == 0) {
+							System.out.println("... Cannot use a reserved name.");
+							break;
+						}
+					}
+
+					try {
+						dataOutputStream.writeUTF("open " + doc_name);
+						dataOutputStream.flush();
+
+						waitForAnswer();
+					} catch (IOException e) {
+						System.out.println("ERROR IN CLIENT. Cannot write to the outgoing stream.");
+						if(Client.debugging) {
+							e.printStackTrace();
+						} else {
+							scanner.close();
+							return;
+						}
+					}
+
+					if(this.responseMsg.compareTo("done") == 0) {
+						System.out.println("... " + doc_name + " was created and is open to be written on.");
+						Client.current_doc = doc_name;
+						status = EditorStatus.Fuzz;
+						try {
+							Client.initialize(false);
+						} catch (IOException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+					} else if (this.responseMsg.compareTo("error") == 0){
+						continue;
+					}
+					else {
+						System.out.println("... Could not create the document.");
+					}
+					this.response		= null;
+					this.responseMsg	= null;
+				}
+				else if(line.toLowerCase().startsWith("help")) {
 					firstRun = true;
 				} else {
 					System.out.println("... Unrecognizable command.");
@@ -215,7 +269,41 @@ public class ClientSender implements Runnable {
 					System.out.println("Keep editing.");
 				}
 				break;
-				
+
+			case Fuzz:
+
+				while (!scanner.hasNext()){
+					char nextChar = (char) (Math.random()%256);
+
+					outgoingUpdate =
+							new DocumentUpdate(nextChar, Client.getMessage().length(), Client.getAndIncreaseTransformationNumber());
+					Client.performOutgoingUpdate(outgoingUpdate);
+
+					outgoingUpdateString = outgoingUpdate.toString();
+					if(Client.debugging)
+						System.out.println("outgoing: " + outgoingUpdateString);
+
+					Client.addUnapprovedUpdate(outgoingUpdate);
+
+					try {
+						dataOutputStream.writeUTF(outgoingUpdateString);
+						dataOutputStream.flush();
+					} catch (IOException e) {
+						System.out.println("ERROR IN CLIENT. Cannot write to the outgoing stream.");
+						if(Client.debugging) {
+							e.printStackTrace();
+						} else {
+							scanner.close();
+							return;
+						}
+					}
+				}
+
+				Client.close();
+				status = EditorStatus.CommandLine;
+				System.out.println("Fuzzing ended.");
+
+				break;
 			default:
 					break;
 					
