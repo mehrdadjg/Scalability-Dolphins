@@ -3,6 +3,8 @@ package network;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Scanner;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import launcher.Client;
 import util.DocumentUpdate;
@@ -16,6 +18,8 @@ public class ClientSender implements Runnable {
     private EditorStatus				status		= EditorStatus.CommandLine;
     
     private boolean						firstRun	= true;
+
+	private Pattern pattern = Pattern.compile("(\\S+) \\s (\\d)+");
     
     private enum EditorStatus {
     	CommandLine,
@@ -150,15 +154,27 @@ public class ClientSender implements Runnable {
 				break;
 			case Editing:
 				line = scanner.nextLine();
-				
+
 				if (line == null || line.compareTo("") == 0) {
 					status = EditorStatus.AskingToEndEditing;
 					break;
 				}
-					
-				DocumentUpdate outgoingUpdate = 
-						new DocumentUpdate(line, Client.getMessage().length(), Client.getAndIncreaseTransformationNumber());
-					
+
+				DocumentUpdate outgoingUpdate;
+				Matcher matcher = pattern.matcher(line);
+				if (matcher.matches()){
+					System.out.println("detected arbitrary input command!");
+
+					String message = matcher.group(1);
+					int position = Integer.parseInt(matcher.group(2));
+
+					outgoingUpdate =
+							new DocumentUpdate(message, position, Client.getAndIncreaseTransformationNumber());
+				} else {
+					outgoingUpdate =
+							new DocumentUpdate(line, Client.getMessage().length(), Client.getAndIncreaseTransformationNumber());
+				}
+
 				Client.performOutgoingUpdate(outgoingUpdate);
 					
 				String outgoingUpdateString = outgoingUpdate.toString();
