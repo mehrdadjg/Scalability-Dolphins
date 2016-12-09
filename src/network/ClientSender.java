@@ -2,6 +2,7 @@ package network;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.util.Random;
 import java.util.Scanner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -19,7 +20,7 @@ public class ClientSender implements Runnable {
     
     private boolean						firstRun	= true;
 
-	private Pattern pattern = Pattern.compile("(\\S+) \\s (\\d)+");
+	private Pattern pattern = Pattern.compile("(\\S+) (\\d+)");
     
     private enum EditorStatus {
     	CommandLine,
@@ -271,32 +272,38 @@ public class ClientSender implements Runnable {
 				break;
 
 			case Fuzz:
+				//System.out.println("butts");
+				try {
+					while (System.in.available()==0){
+						char nextChar = (char) (new Random().nextInt(255));
+						
 
-				while (!scanner.hasNext()){
-					char nextChar = (char) (Math.random()%256);
+						outgoingUpdate =
+								new DocumentUpdate(nextChar, Client.getMessage().length(), Client.getAndIncreaseTransformationNumber());
+						Client.performOutgoingUpdate(outgoingUpdate);
 
-					outgoingUpdate =
-							new DocumentUpdate(nextChar, Client.getMessage().length(), Client.getAndIncreaseTransformationNumber());
-					Client.performOutgoingUpdate(outgoingUpdate);
+						outgoingUpdateString = outgoingUpdate.toString();
+						if(Client.debugging)
+							System.out.println("outgoing: " + outgoingUpdateString);
 
-					outgoingUpdateString = outgoingUpdate.toString();
-					if(Client.debugging)
-						System.out.println("outgoing: " + outgoingUpdateString);
+						Client.addUnapprovedUpdate(outgoingUpdate);
 
-					Client.addUnapprovedUpdate(outgoingUpdate);
-
-					try {
-						dataOutputStream.writeUTF(outgoingUpdateString);
-						dataOutputStream.flush();
-					} catch (IOException e) {
-						System.out.println("ERROR IN CLIENT. Cannot write to the outgoing stream.");
-						if(Client.debugging) {
-							e.printStackTrace();
-						} else {
-							scanner.close();
-							return;
+						try {
+							dataOutputStream.writeUTF(outgoingUpdateString);
+							dataOutputStream.flush();
+						} catch (IOException e) {
+							System.out.println("ERROR IN CLIENT. Cannot write to the outgoing stream.");
+							if(Client.debugging) {
+								e.printStackTrace();
+							} else {
+								scanner.close();
+								return;
+							}
 						}
 					}
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
 				}
 
 				Client.close();
