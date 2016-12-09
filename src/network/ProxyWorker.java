@@ -1,6 +1,7 @@
 package network;
 
 import util.BlockingQueue;
+import util.Resources;
 import util.SocketStreamContainer;
 
 import java.io.IOException;
@@ -63,6 +64,12 @@ public class ProxyWorker implements Runnable{
             case "update" :
                 operationUpdate(msg);
                 break;
+            case "list":
+            	operationList(msg);
+            	break;
+            case "open":
+            	operationCreate(msg);
+            	break;
             case "error" : case "error:" :
                 break;
             default:
@@ -75,15 +82,49 @@ public class ProxyWorker implements Runnable{
 
     /**
      * Retrieves updates with a TN of <TN> or higher from any available replica and sends them to the client
-     * @param msg a string of the format "Update <TN>"
+     * @param msg a string of the format "Update <ID> <TN>"
      * @throws IOException if sending process fails. Likely due to the client disconnecting.
      */
     void operationUpdate(String msg) throws IOException {
-        recoveryManager.recover(this, Integer.parseInt(msg.split(" ")[1]));
+    	if(msg.split(" ")[1].compareTo("null") != 0) {
+    		recoveryManager.recover(this, msg.split(" ")[1], Integer.parseInt(msg.split(" ")[2]));
+    	} else {
+    		sendUTF("bundle null []");
+    	}
     }
 
     private void operationDeliver(String msg){
         msgs.add(msg, this);
+    }
+
+    private void operationList(String msg) throws IOException {
+        GroupManager<ProxyReplicaWorker> groupManager = ProxyMain.replicaGroupManager;                                  //Get the group manager from proxyMain
+        String reply = "error: system offline";
+
+        while (reply.compareTo("error: system offline") == 0 && groupManager.replicasOnline()) {
+            ProxyReplicaWorker primary = groupManager.firstElement();                                                   //check the first available replica
+            String masterIP = primary.toString().split(":")[0];                                                         //get IP, we will be accessing through the recovery port
+            try(SocketStreamContainer master = new SocketStreamContainer(new Socket(masterIP, Resources.RECOVERYPORT))){//create connection to replica over the recovery port
+                master.dataOutputStream.writeUTF(msg);                                                                  //send the list request
+                master.dataOutputStream.flush();
+                reply = master.dataInputStream.readUTF();                                                               //store the reply
+            } catch (IOException e) {
+                groupManager.remove(primary);                                                                           //remove failed replica from groupManager
+                primary.shutdown();
+            }
+        }                                                //keep trying replicas until we get a reply, or we run out of replicas
+        sendUTF(reply);                                                                                                 //pass the reply to the client
+    }
+    
+    private void operationCreate(String msg) throws IOException {
+        GroupManager<ProxyReplicaWorker> groupManager = ProxyMain.replicaGroupManager;
+        
+        groupManager.broadcast(msg);
+        if (groupManager.replicasOnline()){
+            sendUTF("done");
+        } else {
+            sendUTF("error: system offline");
+        }
     }
 
     /**

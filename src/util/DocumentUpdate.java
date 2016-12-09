@@ -37,6 +37,11 @@ public class DocumentUpdate{
     String s								= "";
     
     /**
+     * The name of the document that owns this update.
+     */
+    String doc_name							= "";
+    
+    /**
      * The ID of the client who initiated the update.
      */
     String id								= null;
@@ -185,12 +190,14 @@ public class DocumentUpdate{
     	String header = inputList[0];
     	try {
 	    	if(header.matches("delete")) {
+	    		out.doc_name				= inputList[1];
 	    		out.intendedPosition		= Integer.parseInt(inputList[2]);
 	        	out.actualPosition			= Integer.parseInt(inputList[3]);
 	        	out.transformationNumber	= Integer.parseInt(inputList[4]);
 	        	out.id						= inputList[5];
 	        	out.s						= String.valueOf(DocumentUpdate.BACKSPACE);
 	    	} else if(header.matches("add")) {
+	    		out.doc_name				= inputList[1];
 	    		out.intendedPosition		= Integer.parseInt(inputList[2]);
 	        	out.actualPosition			= Integer.parseInt(inputList[3]);
 	        	out.transformationNumber	= Integer.parseInt(inputList[4]);
@@ -214,19 +221,19 @@ public class DocumentUpdate{
     		
     		
     		str = "delete " + 										// The Header
-    				String.valueOf(0) +	" " +						// Document ID
+    				Client.current_doc + " " +						// Document ID
     				String.valueOf(intendedPosition) + " " +		// Intended Position
     				String.valueOf(actualPosition) + " " +			// Actual Position
     				String.valueOf(transformationNumber) + " " +	// Transformation Number
     				id + "\n";										// The MAC Address
     	} else {
     		str = "add " + 											// The Header
-    				String.valueOf(0) +	" " +						// Document ID
+    				Client.current_doc + " " +						// Document ID
     				String.valueOf(intendedPosition) + " " +		// Intended Position
     				String.valueOf(actualPosition) + " " +			// Actual Position
     				String.valueOf(transformationNumber) + " " +	// Transformation Number
     				id + " " +										// The MAC Address
-    				str2charList(s) + "\n";					// The Message
+    				str2charList(s) + "\n";							// The Message
     	}
     	return str;
     }
@@ -245,6 +252,10 @@ public class DocumentUpdate{
     		output += String.valueOf((char) Integer.parseInt(charList[i]));
     	}
     	return output;
+    }
+    
+    public String getDocumentName() {
+    	return doc_name;
     }
     
     @Override

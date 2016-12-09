@@ -7,14 +7,12 @@ import util.Resources;
 import util.SocketStreamContainer;
 import util.TimeoutTimer;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
-import java.util.Arrays;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.Vector;
+import java.util.*;
 import java.util.regex.Pattern;
 
 /**
@@ -24,7 +22,7 @@ public class ReplicaMain implements Runnable{
     private String proxyIp;
     private int proxyPort;
     private boolean isRunning;
-    private FileHandler fileHandler = new FileHandler("file.txt");
+//    private FileHandler fileHandler = new FileHandler("file.txt");
     private ReplicaReceiver replicaReceiver;
     private int pingInterval = Resources.TIMEOUT;
     private boolean proxyConnected;
@@ -32,7 +30,7 @@ public class ReplicaMain implements Runnable{
     public ReplicaMain(String ip, int port, int recoveryPort) throws IOException {
         this.proxyIp = ip;
         this.proxyPort = port;
-        this.replicaReceiver = new ReplicaReceiver(this, fileHandler, recoveryPort);
+        this.replicaReceiver = new ReplicaReceiver(this, recoveryPort);
     }
 
     /**
@@ -61,23 +59,54 @@ public class ReplicaMain implements Runnable{
                         String msg = proxy.dataInputStream.readUTF();
 
                         Logger.log("Incoming Message from proxy > " + msg, Logger.LogType.Info);
-
+                        
+                        FileHandler fileHandler = null;
                         switch (msg.split(" ")[0]) {
                             case "add":
                             case "delete":
                                 //Write the incoming update to file
+                            	fileHandler = new FileHandler(msg.split(" ")[1] + ".txt");
                                 fileHandler.append(msg);
+                                fileHandler.close();
+                                fileHandler = null;
                                 break;
                             case "query_tn":
                                 //reply with the current TN
-                                sendUTF("tn " + (fileHandler.read().length), proxy);
+                            	if(msg.split(" ").length == 2) {
+                            		fileHandler = new FileHandler(msg.split(" ")[1] + ".txt");
+                            		sendUTF("tn [" + msg.split(" ")[1] + ":" + (fileHandler.read().length) + "]", proxy);
+                            		fileHandler.close();
+                            		fileHandler = null;
+                            	} else {
+                            		File root = new File(".");
+                            		File[] docs = root.listFiles();
+                            		String tns = "";
+                            		for(int i = 0; i < docs.length; i++) {
+                            			if(docs[i].isFile() && docs[i].getName().endsWith(".txt")) {
+                            				String name = docs[i].getName().substring(0, docs[i].getName().length() - 4);
+                            				fileHandler = new FileHandler(docs[i].getName());
+                            				tns += (name + ":" + fileHandler.read().length + ",");
+                            				fileHandler.close();
+                            				fileHandler = null;
+                            			}
+                            		}
+                            		
+                            		if(tns.endsWith(",")) {
+                            			sendUTF("tn [" + tns.substring(0, tns.length() - 1) + "]", proxy);
+                            		} else {
+                            			sendUTF("tn [" + tns + "]", proxy);
+                            		}
+                            	}
                                 break;
                             case "transformations":
-                                operationTransformations(Integer.parseInt(msg.split(" ")[1]), Integer.parseInt(msg.split(" ")[2]), proxy);
+                                operationTransformations(msg.split(" ")[1], Integer.parseInt(msg.split(" ")[2]), Integer.parseInt(msg.split(" ")[3]), proxy);
                                 break;
+                            case "open":
+                            	new FileHandler(msg.split(" ")[1] + ".txt");
+                            	break;
                             default:
                                 //Discard messages that are not recognized as part of the protocol
-                                sendUTF("error:incorrect format", proxy);
+                                //System.out.println("error:incorrect format");
                                 break;
                         }
                     }
@@ -94,7 +123,6 @@ public class ReplicaMain implements Runnable{
                 //e.printStackTrace();
             }
         }
-        fileHandler.close();
     }
 
     /**
@@ -108,6 +136,7 @@ public class ReplicaMain implements Runnable{
                 try {
                     sendUTF("ping", proxy);
                 } catch (IOException e) {
+                    timeoutTimer.cancel();
                     proxyConnected = false;
                     //e.printStackTrace();
                 }
@@ -122,22 +151,21 @@ public class ReplicaMain implements Runnable{
      * @throws IOException If the connection is not open
      */
     private void sendUTF(String msg, SocketStreamContainer socketStreamContainer) throws IOException{
-        //startTimer();
         socketStreamContainer.dataOutputStream.writeUTF(msg);
         socketStreamContainer.dataOutputStream.flush();
     }
 
     /**
-     * Synchronizes data between itself and all other replicas in the network
-     * @param proxy The SocketStreamContainer object which has the currently open streams to the proxy
-     * @throws IOException if the streams are disconnected
+     * Sends an update request to the proxy parses the reply into an array of addresses of available replicas
+     * @param proxy The proxy to request the update from
+     * @return An array of addresses of replicas
+     * @throws IOException If the proxy disconnects
      */
-    private void synchronize(SocketStreamContainer proxy) throws IOException {
-        boolean recoveryComplete = false;
-
-        while (!recoveryComplete && isRunning) {
-            //send an update request
-            sendUTF("update",proxy);
+    private String[] requestAvailableReplicas(SocketStreamContainer proxy)throws IOException{
+        String[] replicaListString = new String[0];
+        do {
+            //send an update request to get the list of available replicas from the proxy
+            sendUTF("update", proxy);
 
             //wait for reply
             TimeoutTimer timer = new TimeoutTimer();
@@ -146,139 +174,255 @@ public class ReplicaMain implements Runnable{
                 Thread.yield();
             }
             //retry if proxy has not yet sent a reply
-            if (proxy.dataInputStream.available() == 0){
+            if (proxy.dataInputStream.available() == 0) {
                 Logger.log("Proxy timed out during recovery. reattempting", Logger.LogType.Warning);
                 continue;
             }
 
             //parse the IP addresses in the reply
-            String[] replicaListString = Pattern.compile("\\[|,|\\]").split(proxy.dataInputStream.readUTF());
-            Logger.log("received addresses:  " + Arrays.toString(replicaListString), Logger.LogType.Info);
+            replicaListString = Pattern.compile("\\[|,|\\]").split(proxy.dataInputStream.readUTF());
+        } while (replicaListString.length == 0);
+        return replicaListString;
+    }
 
-            //create connections to all of the received IP addresses
-            Vector<SocketStreamContainer> replicas = new Vector<>();
-            for (String s : replicaListString) {
-                if ((s.compareTo(InetAddress.getLocalHost().getHostAddress()) != 0) && (s.length() > 0)) {
+    /**
+     * create and return connections all IPs in an array except own
+     * @param replicaListString A String array containing IPs
+     * @return A list of connections that can be used to communicate to the IPs
+     */
+    private Vector<SocketStreamContainer> stringToConnections(String[] replicaListString){
+
+        Vector<SocketStreamContainer> replicas = new Vector<>();
+        for (String s : replicaListString) {
+            try {
+                if ((s.compareTo(InetAddress.getLocalHost().getHostAddress()) != 0) && (s.length() > 0)) {              //make sure own IP is not in the list so we dont connect to ourselves
                     try {
-                        replicas.add(new SocketStreamContainer(new Socket(s.split(":")[0], Resources.RECOVERYPORT)));
+                        replicas.add(new SocketStreamContainer(new Socket(s.split(":")[0], Resources.RECOVERYPORT)));   //create the new connection and add it to the list
                     } catch (IOException e) {
                         //e.printStackTrace();
                     }
                 }
+            } catch (UnknownHostException e) {
+                //e.printStackTrace();
             }
-            Logger.log("Opened " + replicas.size() + " Connections for recovery", Logger.LogType.Info);
+        }
+        return replicas;
+    }
 
-            if (replicas.isEmpty()){
-                Logger.log("No connections made. Ending recovery", Logger.LogType.Info);
-                recoveryComplete = true;
-                break;
+    /**
+     * broadcast a message to all connections in a list
+     * @param msg the message to broadcast
+     * @param replicas the connections to broadcast the message to
+     */
+    private void broadcast(String msg, Vector<SocketStreamContainer> replicas){
+        for (SocketStreamContainer s : replicas) {
+            try {
+                sendUTF(msg, s);
+            } catch (IOException e) {
+                Logger.log("replica disconnected: " + s.socket.toString(), Logger.LogType.Warning);
+                //e.printStackTrace();
             }
+        }
+    }
 
-            //query all replicas for their TNs
-            for (SocketStreamContainer s : replicas) {
-                try {
-                    sendUTF("query_tn", s);
+    private String[] readFromMultipleConnections(Vector<SocketStreamContainer> replicas){
+        String[] replies = new String[replicas.size()];
+        for (SocketStreamContainer s : replicas) {
+            try {
+                if (s.dataInputStream.available() > 0) {
+                    replies[replicas.indexOf(s)] = s.dataInputStream.readUTF();
+                } else {
+                    throw new IOException("Replica timeout");                                                           //If the dataInputStream is empty, then they did not reply in time and are assumed disconnected
+                }
+            } catch (IOException e) {                                                                                   //If they are thought to be disconnected, then skip them
+                Logger.log("replica disconnected: " + s.socket.toString(), Logger.LogType.Warning);
+                //e.printStackTrace();
+            }
+        }
+        return replies;
+    }
+
+    private void hashBroadcast(Vector<SocketStreamContainer> replicas){
+        File root = new File(".");
+        File[] docs = root.listFiles();
+        String hashes = "hash [";
+        for(int i = 0; i < docs.length; i++) {
+            if(docs[i].isFile() && docs[i].getName().endsWith(".txt")) {
+                String name = docs[i].getName().substring(0, docs[i].getName().length() - 4);
+                int hashTN = 0;
+                int hashcode = 0;
+                try(FileHandler fileHandler = new FileHandler(docs[i].getName())){
+                    hashTN = fileHandler.read().length;
+                    hashcode = Arrays.hashCode(fileHandler.read());
                 } catch (IOException e) {
-                    Logger.log("replica disconnected: " + s.socket.toString(), Logger.LogType.Warning);
                     //e.printStackTrace();
                 }
+                hashes += (name + ":" + hashTN + ":" + hashcode + ",");
             }
+        }
 
-            //wait for reply
-            timer = new TimeoutTimer();
-            timer.startTimer(1000);
-            while (!timer.isTimeoutFlag() && replicas.firstElement().dataInputStream.available() == 0) {
-                Thread.yield();
+        if(hashes.endsWith(",")) {
+            hashes = (hashes.substring(0, hashes.length() - 1) + "]");
+        } else {
+            hashes = (hashes + "]");
+        }
+
+        broadcast(hashes, replicas);
+    }
+
+    /**
+     * Synchronizes data between itself and all other replicas in the network
+     * @param proxy The SocketStreamContainer object which has the currently open streams to the proxy
+     * @throws IOException if the streams are disconnected
+     */
+    private void synchronize(SocketStreamContainer proxy) throws IOException {
+
+        //get the list of available replicas from the proxy
+        String[] replicaListString = requestAvailableReplicas(proxy);
+        Logger.log("received addresses:  " + Arrays.toString(replicaListString), Logger.LogType.Info);
+
+        //turn the list of replicas into connections to those replicas
+        Vector<SocketStreamContainer> replicas = stringToConnections(replicaListString);
+        Logger.log("Opened " + replicas.size() + " Connections for recovery", Logger.LogType.Info);
+
+        //If no other replicas were found, then this is the only current replica and recovery is not necessary
+        if (replicas.isEmpty()){
+            Logger.log("No connections made. Ending recovery", Logger.LogType.Info);
+            return;
+        }
+
+        //query all replicas for their TNs
+        broadcast("query_tn", replicas);
+
+        //wait
+        TimeoutTimer timer = new TimeoutTimer();
+        timer.startTimer(1000);
+        while (!timer.isTimeoutFlag()){
+            Thread.yield();
+        }
+
+        //read the replies from the replicas
+        String[] replies = readFromMultipleConnections(replicas);
+
+        //parse the replies into integers
+        String[][] replicaFiles = new String[replicas.size()][];
+        int[][] replicaTNs = new int[replicas.size()][];
+        for (int i = 0; i < replies.length; i++) {
+            String[] currentReplicaTN = Pattern.compile("\\[|,|\\]").split(replies[i].replaceFirst("tn ", ""));
+            replicaFiles[i] = new String[currentReplicaTN.length];
+            replicaTNs[i] = new int[currentReplicaTN.length];
+            for (int j = 1; j < replicaTNs[i].length; j++){
+                replicaFiles[i][j] = currentReplicaTN[j].split(":")[0];
+                replicaTNs[i][j] = Integer.parseInt(currentReplicaTN[j].split(":")[1]);
             }
+        }
 
-            int[] replicaTNs = new int[replicas.size()];
-            for (SocketStreamContainer s : replicas) {
-                try {
-                    if (s.dataInputStream.available() > 0) {
-                        replicaTNs[replicas.indexOf(s)] = Integer.parseInt(s.dataInputStream.readUTF().split(" ")[1]);      //Get their current TN
-                    } else {
-                        throw new IOException("Replica timeout");                                                           //If the dataInputStream is empty, then they did not reply in time and are assumed disconnected
+        //query all replicas for their file hashes
+        hashBroadcast(replicas);
+
+        //wait
+        timer = new TimeoutTimer();
+        timer.startTimer(1000);
+        while (!timer.isTimeoutFlag()){
+            Thread.yield();
+        }
+
+        //receive the hashes from the replicas
+        String[] hashes = readFromMultipleConnections(replicas);
+
+
+        //for each replica...
+        for(int i = 0; i < replicas.size(); i++){
+            String currentReply = hashes[i].replaceFirst("signature ", "");
+            SocketStreamContainer currentReplica = replicas.elementAt(i);
+            //for each file at each replica...
+            String[] split = Pattern.compile("\\[|,|\\]").split(currentReply);
+            for (int j = 0; j < split.length; j++) {
+                String currentFile = split[j];
+                if (currentFile.length() == 0) {
+                    continue;
+                }
+                String fileName = currentFile.split(":")[0];
+                int hashLength = Integer.parseInt(currentFile.split(":")[1]);
+                int hash = Integer.parseInt(currentFile.split(":")[2]);
+
+                try (FileHandler fileHandler = new FileHandler(fileName + ".txt")) {
+                    int ownTN = fileHandler.read().length;
+                    int theirTN = hashLength;
+
+                    List replicaFilesList = Arrays.asList(replicaFiles[i]);
+
+                    if (replicaFilesList.contains(fileName)){
+                        theirTN = replicaTNs[i][replicaFilesList.indexOf(fileName)];
                     }
-                } catch (IOException e) {                                                                                    //If they are thought to be disconnected, then skip them
-                    Logger.log("replica disconnected: " + s.socket.toString(), Logger.LogType.Warning);
-                    //e.printStackTrace();
-                }
-            }
 
-            //request hash from all replicas
-            int TNown = fileHandler.read().length;
-            for (SocketStreamContainer s : replicas) {
-                sendUTF("hash " + fileHandler.getFileName() + " " + Math.min(TNown, replicaTNs[replicas.indexOf(s)]),s);               //Request the hash of transformations that should exist in both documents
-            }
 
-            //wait for reply
-            timer = new TimeoutTimer();
-            timer.startTimer(1000);
-            while (!timer.isTimeoutFlag()) {
-                Thread.yield();
-            }
+                    //check if the files are compatible
+                    boolean isCompatible = (hash == Arrays.hashCode(Arrays.copyOfRange(fileHandler.read(), 0, hashLength)));
+                    //if their file is incompatible
+                    if (!isCompatible) {
+                        //and their file is smaller
+                        if (theirTN < ownTN) {
+                            //replace their file
+                            sendUTF("replace " + fileName + ":" + Arrays.toString(Arrays.copyOfRange(fileHandler.read(), 0, ownTN)), currentReplica);
+                            sendUTF("replace " + fileName + ":" + Arrays.toString(Arrays.copyOfRange(fileHandler.read(), 0, ownTN)), proxy);
+                        }
+                        //and their file is larger or same size
+                        else {
+                            //delete own file
+                            fileHandler.purge();
+                            ownTN = 0;
 
-            //Request any new updates from each replica
-            for (SocketStreamContainer s : replicas) {
-                try {
-                    if (s.dataInputStream.available() > 0) {
-                        String hash_rs = s.dataInputStream.readUTF();
-
-                        String fileName = hash_rs.split(" ")[1];
-                        int length = Integer.parseInt(hash_rs.split(" ")[2]);
-                        int hash = Integer.parseInt(hash_rs.split(" ")[3]);
-
-                        if (replicaTNs[replicas.indexOf(s)] > TNown) {                                                                            //If their TN is greater than own
-                            if (fileHandler.hash(length) != hash) {
-                                TNown = 0;
-                                fileHandler.purge();
-                            }
-
-                            sendUTF("transformations " + TNown + " " + replicaTNs[replicas.indexOf(s)],s);                           //Request the missing TNs
-                            String reply = s.dataInputStream.readUTF();                                                         //Download the missing TNs
-                            if (reply.startsWith("bundle ")) {                                                                   //Check formatting
-                                operationBundle(reply);                                                                         //Apply the downloads
-                                TNown = replicaTNs[replicas.indexOf(s)];
-                            }
-                        } else if (replicaTNs[replicas.indexOf(s)] < TNown) {                                               //Otherwise, if their TN is less than own
-                            if (fileHandler.hash(length) != hash) {
-                                sendUTF("replace " + Arrays.toString(Arrays.copyOfRange(fileHandler.read(), 0, TNown)), s);   //send a replace message to have them replace their entire file
-                            } else {
-                                sendUTF("bundle " + Arrays.toString(Arrays.copyOfRange(fileHandler.read(), replicaTNs[replicas.indexOf(s)], TNown)), s);    //Send the TNs they are missing
-
+                            sendUTF("transformations " + fileName.replaceFirst(".txt", "") + " " + ownTN + " " + theirTN, currentReplica);                         //Request the file
+                            String reply = currentReplica.dataInputStream.readUTF();                                    //Download the file
+                            if (reply.startsWith("bundle ")) {                                                          //Check formatting
+                                operationBundle(reply);                                                                 //Apply the downloads
                             }
                         }
+                        //If the files are compatible
                     } else {
-                        throw new IOException("Replica timeout");                                                           //If the dataInputStream is empty, then they did not reply in time and are assumed disconnected
+                        //and their file is smaller
+                        if (theirTN < ownTN) {
+                            //send the difference
+                            sendUTF("bundle " + fileName.replaceFirst(".txt", "") + " " + Arrays.toString(Arrays.copyOfRange(fileHandler.read(), theirTN, ownTN)), currentReplica);
+                            sendUTF("bundle " + fileName.replaceFirst(".txt", "") + " " + Arrays.toString(Arrays.copyOfRange(fileHandler.read(), theirTN, ownTN)), proxy);
+                            //and their file is bigger
+                        } else if (ownTN < theirTN) {
+                            //request the difference
+                            sendUTF("transformations " + fileName.replaceFirst(".txt", "") + " " + ownTN + " " + theirTN, currentReplica);                         //Request the file
+                            String reply = currentReplica.dataInputStream.readUTF();                                    //Download the file
+                            if (reply.startsWith("bundle ")) {                                                          //Check formatting
+                                operationBundle(reply);                                                                 //Apply the downloads
+                            }
+                        }
                     }
-                } catch (IOException e) {                                                                                    //If they are thought to be disconnected, then skip them
-                    Logger.log("replica disconnected: " + s.socket.toString(), Logger.LogType.Warning);
+
+                } catch (IOException e) {
                     //e.printStackTrace();
                 }
             }
-
-
-            replicas.forEach(SocketStreamContainer::close);
-            recoveryComplete = true;
         }
+        replicas.forEach(SocketStreamContainer::close);
         System.out.println("finished updating");
     }
 
     /**
      * Appends a list of transformations to the end of the file
-     * @param msg The message, including the "bundle" header and the list of transformations
+     * @param msg The message, including the "bundle" header, the doc_name and the list of transformations
      * @throws IOException If the fileHandler cannot write to the file
      */
     void operationBundle(String msg) throws IOException{
-            msg = msg.substring("bundle ".length());
-            String[] msgs = Pattern.compile("\\[|,|\\]").split(msg);
+
+            String[] msgs = Pattern.compile("\\[|,|\\]").split(msg.substring("bundle ".length()));
 
             //store nonempty values from the response array
+            FileHandler fileHandler = new FileHandler(msg.split(" ")[1] + ".txt");
             for (int i = 1; i < msgs.length; i++){
                 if (msgs[i].length() > 0){
                     fileHandler.append(msgs[i]);
                 }
             }
+            fileHandler.close();
     }
 
     /**
@@ -287,15 +431,20 @@ public class ReplicaMain implements Runnable{
      * @throws IOException If the fileHandler cannot write to the file
      */
     void operationReplace(String msg) throws IOException{
-        fileHandler.purge();
 
         msg = msg.substring("replace ".length());
+        String fileName = msg.substring(0, msg.indexOf(":"));
         String[] msgs = Pattern.compile("\\[|,|\\]").split(msg);
 
-        //store nonempty values from the response array
-        for (int i = 1; i < msgs.length; i++){
-            if (msgs[i].length() > 0){
-                fileHandler.append(msgs[i]);
+        try(FileHandler fileHandler = new FileHandler(fileName)){
+            //empty the file
+            fileHandler.purge();
+
+            //store nonempty values from the response array
+            for (int i = 1; i < msgs.length; i++){
+                if (msgs[i].length() > 0){
+                    fileHandler.append(msgs[i]);
+                }
             }
         }
     }
@@ -307,8 +456,10 @@ public class ReplicaMain implements Runnable{
      * @param socketStreamContainer The connection that the list should be sent on
      * @throws IOException If the connection is not open
      */
-    void operationTransformations(int beginIndex, int endIndex, SocketStreamContainer socketStreamContainer) throws IOException {
-        sendUTF("bundle " + Arrays.toString(Arrays.copyOfRange(fileHandler.read(), beginIndex, endIndex)), socketStreamContainer);
+    void operationTransformations(String doc_name, int beginIndex, int endIndex, SocketStreamContainer socketStreamContainer) throws IOException {
+    	System.out.println("ReplicaMain.java");
+    	FileHandler fileHandler = new FileHandler(doc_name + ".txt");
+        sendUTF("bundle " + doc_name + " " + Arrays.toString(Arrays.copyOfRange(fileHandler.read(), beginIndex, endIndex)), socketStreamContainer);
     }
 
     public void shutdown() {

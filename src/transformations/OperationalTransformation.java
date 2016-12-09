@@ -2,6 +2,7 @@ package transformations;
 
 import java.util.ArrayList;
 
+import launcher.Client;
 import util.DocumentUpdate;
 import util.DocumentUpdate.PositionType;
 
@@ -17,6 +18,8 @@ public class OperationalTransformation{
 	
 	public static boolean update(ArrayList<DocumentUpdate> approvedUpdates,
 			ArrayList<DocumentUpdate> unapprovedUpdates, DocumentUpdate incomingUpdate) {
+		if(incomingUpdate.getDocumentName().compareTo(Client.current_doc) != 0)
+			return true;
 		if(approvedUpdates.size() == 0) {
 			approvedUpdates.add(incomingUpdate);
 			return true;
