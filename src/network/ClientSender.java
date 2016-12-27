@@ -7,6 +7,7 @@ import java.util.Scanner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import IO.ClientView;
 import launcher.Client;
 import util.DocumentUpdate;
 
@@ -32,6 +33,62 @@ public class ClientSender implements Runnable {
     
 	public ClientSender(DataOutputStream dataOutputStream) {
 		this.dataOutputStream = dataOutputStream;
+	}
+
+	public void open(String doc_name){
+		try {
+			dataOutputStream.writeUTF("open " + doc_name);
+			dataOutputStream.flush();
+
+			waitForAnswer();
+
+			if(this.responseMsg.compareTo("done") == 0) {
+				Client.current_doc = doc_name;
+				status = EditorStatus.Editing;
+				try {
+					Client.initialize(false);
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			} else {
+				System.out.println("... Could not create the document.");
+			}
+			this.response		= null;
+			this.responseMsg	= null;
+
+		} catch (IOException e) {
+			System.out.println("ERROR IN CLIENT. Cannot write to the outgoing stream.");
+			if(Client.debugging) {
+				e.printStackTrace();
+			} else {
+				return;
+			}
+		}
+
+	}
+
+	public void getList(){
+
+		try {
+			dataOutputStream.writeUTF("list");
+			dataOutputStream.flush();
+
+			waitForAnswer();
+
+			if(responseMsg.compareTo("list_received") == 0) {
+				String[] list = new String[0];
+				if (response != null){
+					list = (String[]) response;
+				}
+				Client.clientView.setList(list);
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		this.response		= null;
+		this.responseMsg	= null;
 	}
 
 	@Override
@@ -92,6 +149,8 @@ public class ClientSender implements Runnable {
 						} else {
 							System.out.println("There are currently no documents. create one with open <name>");
 						}
+
+						Client.clientView.setList(list);
 					} else {
 						status = EditorStatus.CommandLine;
 						System.out.println("... The request was responded with an error.");

@@ -55,8 +55,11 @@ public class Client{
     public	static String			id					= Client.getSelfMAC() + new Random().nextInt();
     public	static String			current_doc			= "null";
     
-    private static ClientReceiver	receiver			= null;
-    private static ClientSender		sender				= null;
+    public static ClientReceiver	receiver			= null;
+    public static ClientSender		sender				= null;
+
+
+	public static ClientView clientView = new ClientView("GUI Demo");
 
 	public static boolean userAcceptedConnection		= false;
     
@@ -71,7 +74,6 @@ public class Client{
     	String line = scanner.nextLine();
     	*/
 
-		ClientView clientView = new ClientView("GUI Demo");
 		SwingUtilities.invokeLater(() -> clientView.create());
 
 		while (!userAcceptedConnection){yield();}
