@@ -1,5 +1,6 @@
 package launcher;
 
+import IO.ClientView;
 import util.DocumentUpdate;
 import util.DocumentUpdate.PositionType;
 import util.Logger.LogType;
@@ -22,6 +23,10 @@ import java.util.regex.Pattern;
 import network.ClientReceiver;
 import network.ClientSender;
 import util.Resources;
+
+import javax.swing.*;
+
+import static java.lang.Thread.yield;
 
 /**
  * Launcher for a client application.
@@ -52,15 +57,26 @@ public class Client{
     
     private static ClientReceiver	receiver			= null;
     private static ClientSender		sender				= null;
+
+	public static boolean userAcceptedConnection		= false;
     
     public static void main(String[] args){
     	Logger.initialize(ProcessType.Client);
+		/*
     	System.out.println("The default proxy server address is " + host + ":" + String.valueOf(port));
     	System.out.println("If this is incorrect give the actual address using the same format," + 
     			" otherwise type anything.");
     	@SuppressWarnings("resource")
 		Scanner scanner = new Scanner(System.in);
     	String line = scanner.nextLine();
+    	*/
+
+		ClientView clientView = new ClientView("GUI Demo");
+		SwingUtilities.invokeLater(() -> clientView.create());
+
+		while (!userAcceptedConnection){yield();}
+		String line = clientView.getAddress();
+
     	try {
     		String[] segments = line.split(":");
     		if(segments.length == 2) {

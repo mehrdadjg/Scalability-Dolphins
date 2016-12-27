@@ -1,5 +1,6 @@
 package IO;
 
+import launcher.Client;
 import util.Resources;
 
 import javax.swing.*;
@@ -24,12 +25,11 @@ public class ClientView extends JFrame {
     private JButton connectButton;
 
     public ClientView(String windowName) {
-        JFrame frame = new JFrame(windowName);
-        frame.setContentPane(jPanel);
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.pack();
-        frame.setSize(400, 400);
-        frame.setVisible(true);
+        super(windowName);
+        setContentPane(jPanel);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        pack();
+        setSize(400, 400);
         resetAddressButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -45,12 +45,19 @@ public class ClientView extends JFrame {
         connectButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-
+                Client.userAcceptedConnection = true;
             }
         });
     }
 
     public void create(){
         //TODO
+        setVisible(true);
+        addressTextField.setText("127.0.0.1");
+        portTextField.setText(Integer.toString(Resources.CLIENTPORT));
+    }
+
+    public String getAddress(){
+        return addressTextField.getText() + ":" + portTextField.getText();
     }
 }
