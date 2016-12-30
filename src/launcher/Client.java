@@ -253,6 +253,7 @@ public class Client{
     					Client.message.substring(position);
     		}
     	}
+    	clientView.addAt(outgoingUpdate.getString(), position);
     	System.out.println("Current Message: " + Client.message);
     }
     

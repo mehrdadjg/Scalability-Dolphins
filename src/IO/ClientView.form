@@ -156,7 +156,7 @@
                 <properties/>
                 <border type="none"/>
                 <children>
-                  <component id="fcb4c" class="javax.swing.JTextArea" binding="textArea1" default-binding="true">
+                  <component id="fcb4c" class="javax.swing.JTextArea" binding="editingTextArea">
                     <constraints/>
                     <properties>
                       <rows value="20"/>

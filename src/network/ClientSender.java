@@ -91,6 +91,25 @@ public class ClientSender implements Runnable {
 		this.responseMsg	= null;
 	}
 
+	/**
+	 * Operations needed to perform a document update as implemented in the Editing case in the run() method
+	 * @param outgoingUpdate the update that should be sent
+	 */
+	public void sendUpdate(DocumentUpdate outgoingUpdate){
+		Client.performOutgoingUpdate(outgoingUpdate);
+
+		String outgoingUpdateString = outgoingUpdate.toString();
+
+		Client.addUnapprovedUpdate(outgoingUpdate);
+
+		try {
+			dataOutputStream.writeUTF(outgoingUpdateString);
+			dataOutputStream.flush();
+		} catch (IOException e) {
+			System.out.println("ERROR IN CLIENT. Cannot write to the outgoing stream.");
+		}
+	}
+
 	@Override
 	public void run() {
 		isRunning = true;
