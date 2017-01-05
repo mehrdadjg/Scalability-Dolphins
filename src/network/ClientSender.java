@@ -7,7 +7,6 @@ import java.util.Scanner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import IO.ClientView;
 import launcher.Client;
 import util.DocumentUpdate;
 
@@ -81,7 +80,7 @@ public class ClientSender implements Runnable {
 				if (response != null){
 					list = (String[]) response;
 				}
-				Client.clientView.setList(list);
+				Client.observable.notifyObservers(list);
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -168,8 +167,6 @@ public class ClientSender implements Runnable {
 						} else {
 							System.out.println("There are currently no documents. create one with open <name>");
 						}
-
-						Client.clientView.setList(list);
 					} else {
 						status = EditorStatus.CommandLine;
 						System.out.println("... The request was responded with an error.");

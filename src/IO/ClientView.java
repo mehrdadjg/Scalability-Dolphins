@@ -5,15 +5,19 @@ import util.DocumentUpdate;
 import util.Resources;
 
 import javax.swing.*;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 import javax.swing.text.BadLocationException;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
+import java.util.Observable;
+import java.util.Observer;
 
 /**
  * INCOMPLETE
  * Created by Arnold on 2016-12-27.
  */
-public class ClientView extends JFrame {
+public class ClientView extends JFrame implements Observer{
 
     private JPanel jPanel;
     private JTextArea editingTextArea;
@@ -30,6 +34,8 @@ public class ClientView extends JFrame {
     private JButton refreshButton;
     private JButton openButton;
     private final DefaultListModel<String> docsModel = new DefaultListModel<>();
+
+    private boolean listUpdated = false;
 
     public ClientView(String windowName) {
         //Init the window
@@ -55,8 +61,10 @@ public class ClientView extends JFrame {
 
         //TODO enable once handlers are in place to detect successful connection to proxy
         //disable tabs that require a connection to the proxy to work properly
-        //jTabbedPane.setEnabledAt(jTabbedPane.indexOfComponent(ListTab), false);
-        //jTabbedPane.setEnabledAt(jTabbedPane.indexOfComponent(EditingTab), false);
+        jTabbedPane.setEnabledAt(jTabbedPane.indexOfComponent(ListTab), false);
+        jTabbedPane.setEnabledAt(jTabbedPane.indexOfComponent(EditingTab), false);
+
+
 
         //disable the highlighter as the communications protocol does not account for its operation
         editingTextArea.setHighlighter(null);
@@ -99,6 +107,16 @@ public class ClientView extends JFrame {
                 }
             }
         });
+        jTabbedPane.addChangeListener(e -> {
+            if (jTabbedPane.getSelectedIndex() == jTabbedPane.indexOfComponent(ListTab)){
+                if (listUpdated == false){
+                    Client.sender.getList();
+                    listUpdated = true;
+                }
+            }
+        });
+
+        Client.observable.addObserver(this);
     }
 
     /**
@@ -139,10 +157,14 @@ public class ClientView extends JFrame {
 
     /**
      * Make a change to the document shown in the editor text area
-     * @param element The character to add. This may be a backspace to represent a deletion
-     * @param index The position that the character should be added to or removed from
+     * @param documentUpdate The documentUpdate representing the change to be made to a document state
      */
-    public void addAt(String element, int index){
+    public void addAt(DocumentUpdate documentUpdate){
+        String element = documentUpdate.getString();
+        int actualPos = documentUpdate.getPosition(DocumentUpdate.PositionType.Actual);
+        int intendedPos = documentUpdate.getPosition(DocumentUpdate.PositionType.Intended);
+        int index = (actualPos < 0) ? intendedPos : actualPos;
+
         if (element.charAt(0) != DocumentUpdate.BACKSPACE){
             editingTextArea.insert(element,index);
         } else if (element.charAt(0) == DocumentUpdate.BACKSPACE){
@@ -152,6 +174,22 @@ public class ClientView extends JFrame {
             } catch (BadLocationException e) {
                 //e.printStackTrace();
             }
+        }
+    }
+
+    public void connected(boolean isConnected){
+        jTabbedPane.setEnabledAt(jTabbedPane.indexOfComponent(ListTab), isConnected);
+        jTabbedPane.setEnabledAt(jTabbedPane.indexOfComponent(EditingTab), isConnected);
+    }
+
+    @Override
+    public void update(Observable observable, Object arg){
+        if (arg instanceof DocumentUpdate){
+            addAt((DocumentUpdate) arg);
+        } else if (arg instanceof String[]){
+            setList((String[]) arg);
+        } else {
+            connected(Client.isConnected);
         }
     }
 }
