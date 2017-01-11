@@ -13,11 +13,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.Socket;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.Random;
-import java.util.Scanner;
+import java.util.*;
 import java.util.regex.Pattern;
 
 import network.ClientReceiver;
@@ -31,7 +27,7 @@ import static java.lang.Thread.yield;
 /**
  * Launcher for a client application.
  */
-public class Client{
+public class Client extends Observable {
     private static ArrayList<DocumentUpdate> approvedUpdates = new ArrayList<>();
     private static ArrayList<DocumentUpdate> unapprovedUpdates = new ArrayList<>();
     
@@ -58,26 +54,39 @@ public class Client{
     public static ClientReceiver	receiver			= null;
     public static ClientSender		sender				= null;
 
-
-	public static ClientView clientView = new ClientView("GUI Demo");
-
+	public static boolean graphicalMode					= true;
 	public static boolean userAcceptedConnection		= false;
-    
+	public static boolean isConnected					= false;
+	public static Observable observable = new Observable(){
+		//Necessary workaround to allow the use of an Observable without extending it
+		//super.notifyObservers requires hasChanged to be true, but setChanged is protected and cannot be called outside of the class
+		@Override
+		public void notifyObservers(Object arg){
+			setChanged();
+			super.notifyObservers(arg);
+		}
+	};
+
     public static void main(String[] args){
     	Logger.initialize(ProcessType.Client);
-		/*
-    	System.out.println("The default proxy server address is " + host + ":" + String.valueOf(port));
-    	System.out.println("If this is incorrect give the actual address using the same format," + 
-    			" otherwise type anything.");
-    	@SuppressWarnings("resource")
-		Scanner scanner = new Scanner(System.in);
-    	String line = scanner.nextLine();
-    	*/
 
-		SwingUtilities.invokeLater(() -> clientView.create());
 
-		while (!userAcceptedConnection){yield();}
-		String line = clientView.getAddress();
+		String line;
+		if (graphicalMode){
+			//Initialize and create the graphical user interface
+			ClientView clientView = new ClientView("GUI Demo");
+			SwingUtilities.invokeLater(clientView::create);
+
+			while (!userAcceptedConnection){yield();}
+			line = clientView.getAddress();
+		} else {
+			System.out.println("The default proxy server address is " + host + ":" + String.valueOf(port));
+			System.out.println("If this is incorrect give the actual address using the same format," +
+					" otherwise type anything.");
+			@SuppressWarnings("resource")
+			Scanner scanner = new Scanner(System.in);
+			line = scanner.nextLine();
+		}
 
     	try {
     		String[] segments = line.split(":");
@@ -96,6 +105,8 @@ public class Client{
     	
     	try {
     		socket = new Socket(host, port);
+			isConnected = true;
+			observable.notifyObservers(isConnected);
     		System.out.println("Connected.");
     	} catch (IOException e) {
     		System.out.println("ERROR IN CLIENT. Cannot open a socket to the proxy server.");
@@ -141,6 +152,8 @@ public class Client{
     }
     
     public static boolean reconnect() {
+		isConnected = false;
+		observable.notifyObservers(isConnected);
     	try {
     		Logger.log("Attempting to reconnect to the proxy...", LogType.Info);
 	    	socket = new Socket(host, port);
@@ -156,6 +169,8 @@ public class Client{
 			receiver.setInputStream(dataInputStream);
 			sender.setOutputSender(dataOutputStream);
 			Logger.log("Reconnected...", LogType.Info);
+			isConnected = true;
+			observable.notifyObservers(isConnected);
 			return true;
     	} catch(IOException e) {
     		Logger.log("Reconnect failed.", LogType.Error);
@@ -253,7 +268,7 @@ public class Client{
     					Client.message.substring(position);
     		}
     	}
-    	clientView.addAt(outgoingUpdate.getString(), position);
+    	observable.notifyObservers(outgoingUpdate);
     	System.out.println("Current Message: " + Client.message);
     }
     
